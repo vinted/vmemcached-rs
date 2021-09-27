@@ -1,4 +1,4 @@
-extern crate memcache;
+extern crate vinted_memcached;
 
 use std::collections::HashMap;
 use std::{thread, time};
@@ -7,7 +7,8 @@ mod helpers;
 
 #[test]
 fn test_ascii() {
-    let client = helpers::connect("memcache://localhost:12345?protocol=ascii").unwrap();
+    // Testing mcrouter
+    let client = helpers::connect("memcache://localhost:11211?protocol=ascii").unwrap();
 
     client.flush_with_delay(1).unwrap();
     thread::sleep(time::Duration::from_secs(1));

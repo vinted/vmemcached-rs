@@ -40,11 +40,11 @@ impl Client {
     /// Example:
     ///
     /// ```rust
-    /// let pool = memcache::Pool::builder()
+    /// let pool = vinted_memcached::Pool::builder()
     /// .connection_timeout(std::time::Duration::from_secs(1))
-    /// .build(memcache::ConnectionManager::new("memcache://localhost:12345").unwrap())
+    /// .build(vinted_memcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
     /// .unwrap();
-    /// let client = memcache::Client::with_pool(pool);
+    /// let client = vinted_memcached::Client::with_pool(pool);
     /// client.version().unwrap();
     /// ```
     pub fn version(&self) -> Result<String, MemcacheError> {
@@ -56,11 +56,11 @@ impl Client {
     /// Example:
     ///
     /// ```rust
-    /// let pool = memcache::Pool::builder()
+    /// let pool = vinted_memcached::Pool::builder()
     /// .connection_timeout(std::time::Duration::from_secs(1))
-    /// .build(memcache::ConnectionManager::new("memcache://localhost:12345").unwrap())
+    /// .build(vinted_memcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
     /// .unwrap();
-    /// let client = memcache::Client::with_pool(pool);
+    /// let client = vinted_memcached::Client::with_pool(pool);
     /// client.flush().unwrap();
     /// ```
     pub fn flush(&self) -> Result<(), MemcacheError> {
@@ -72,11 +72,11 @@ impl Client {
     /// Example:
     ///
     /// ```rust
-    /// let pool = memcache::Pool::builder()
+    /// let pool = vinted_memcached::Pool::builder()
     /// .connection_timeout(std::time::Duration::from_secs(1))
-    /// .build(memcache::ConnectionManager::new("memcache://localhost:12345").unwrap())
+    /// .build(vinted_memcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
     /// .unwrap();
-    /// let client = memcache::Client::with_pool(pool);
+    /// let client = vinted_memcached::Client::with_pool(pool);
     /// client.flush_with_delay(10).unwrap();
     /// ```
     pub fn flush_with_delay(&self, delay: u32) -> Result<(), MemcacheError> {
@@ -88,11 +88,11 @@ impl Client {
     /// Example:
     ///
     /// ```rust
-    /// let pool = memcache::Pool::builder()
+    /// let pool = vinted_memcached::Pool::builder()
     /// .connection_timeout(std::time::Duration::from_secs(1))
-    /// .build(memcache::ConnectionManager::new("memcache://localhost:12345").unwrap())
+    /// .build(vinted_memcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
     /// .unwrap();
-    /// let client = memcache::Client::with_pool(pool);
+    /// let client = vinted_memcached::Client::with_pool(pool);
     /// let _: Option<String> = client.get("foo").unwrap();
     /// ```
     pub fn get<V: FromMemcacheValueExt>(&self, key: &str) -> Result<Option<V>, MemcacheError> {
@@ -105,11 +105,11 @@ impl Client {
     /// Example:
     ///
     /// ```rust
-    /// let pool = memcache::Pool::builder()
+    /// let pool = vinted_memcached::Pool::builder()
     /// .connection_timeout(std::time::Duration::from_secs(1))
-    /// .build(memcache::ConnectionManager::new("memcache://localhost:12345").unwrap())
+    /// .build(vinted_memcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
     /// .unwrap();
-    /// let client = memcache::Client::with_pool(pool);
+    /// let client = vinted_memcached::Client::with_pool(pool);
     /// client.set("foo", "42", 0).unwrap();
     /// let result: std::collections::HashMap<String, String> = client.gets(&["foo", "bar", "baz"]).unwrap();
     /// assert_eq!(result.len(), 1);
@@ -127,11 +127,11 @@ impl Client {
     /// Example:
     ///
     /// ```rust
-    /// let pool = memcache::Pool::builder()
+    /// let pool = vinted_memcached::Pool::builder()
     /// .connection_timeout(std::time::Duration::from_secs(1))
-    /// .build(memcache::ConnectionManager::new("memcache://localhost:12345").unwrap())
+    /// .build(vinted_memcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
     /// .unwrap();
-    /// let client = memcache::Client::with_pool(pool);
+    /// let client = vinted_memcached::Client::with_pool(pool);
     /// client.set("foo", "bar", 10).unwrap();
     /// # client.flush().unwrap();
     /// ```
@@ -147,11 +147,11 @@ impl Client {
     ///
     /// ```rust
     /// use std::collections::HashMap;
-    /// let pool = memcache::Pool::builder()
+    /// let pool = vinted_memcached::Pool::builder()
     /// .connection_timeout(std::time::Duration::from_secs(1))
-    /// .build(memcache::ConnectionManager::new("memcache://localhost:12345").unwrap())
+    /// .build(vinted_memcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
     /// .unwrap();
-    /// let client = memcache::Client::with_pool(pool);
+    /// let client = vinted_memcached::Client::with_pool(pool);
     /// client.set("foo", "bar", 10).unwrap();
     /// let result: HashMap<String, (Vec<u8>, u32, Option<u64>)> = client.gets(&["foo"]).unwrap();
     /// let (_, _, cas) = result.get("foo").unwrap();
@@ -175,11 +175,11 @@ impl Client {
     /// Example:
     ///
     /// ```rust
-    /// let pool = memcache::Pool::builder()
+    /// let pool = vinted_memcached::Pool::builder()
     /// .connection_timeout(std::time::Duration::from_secs(1))
-    /// .build(memcache::ConnectionManager::new("memcache://localhost:12345").unwrap())
+    /// .build(vinted_memcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
     /// .unwrap();
-    /// let client = memcache::Client::with_pool(pool);
+    /// let client = vinted_memcached::Client::with_pool(pool);
     /// let key = "add_test";
     /// client.delete(key).unwrap();
     /// client.add(key, "bar", 100000000).unwrap();
@@ -195,11 +195,11 @@ impl Client {
     /// Example:
     ///
     /// ```rust
-    /// let pool = memcache::Pool::builder()
+    /// let pool = vinted_memcached::Pool::builder()
     /// .connection_timeout(std::time::Duration::from_secs(1))
-    /// .build(memcache::ConnectionManager::new("memcache://localhost:12345").unwrap())
+    /// .build(vinted_memcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
     /// .unwrap();
-    /// let client = memcache::Client::with_pool(pool);
+    /// let client = vinted_memcached::Client::with_pool(pool);
     /// let key = "replace_test";
     /// client.set(key, "bar", 0).unwrap();
     /// client.replace(key, "baz", 100000000).unwrap();
@@ -220,11 +220,11 @@ impl Client {
     /// Example:
     ///
     /// ```rust
-    /// let pool = memcache::Pool::builder()
+    /// let pool = vinted_memcached::Pool::builder()
     /// .connection_timeout(std::time::Duration::from_secs(1))
-    /// .build(memcache::ConnectionManager::new("memcache://localhost:12345").unwrap())
+    /// .build(vinted_memcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
     /// .unwrap();
-    /// let client = memcache::Client::with_pool(pool);
+    /// let client = vinted_memcached::Client::with_pool(pool);
     /// let key = "key_to_append";
     /// client.set(key, "hello", 0).unwrap();
     /// client.append(key, ", world!").unwrap();
@@ -242,11 +242,11 @@ impl Client {
     /// Example:
     ///
     /// ```rust
-    /// let pool = memcache::Pool::builder()
+    /// let pool = vinted_memcached::Pool::builder()
     /// .connection_timeout(std::time::Duration::from_secs(1))
-    /// .build(memcache::ConnectionManager::new("memcache://localhost:12345").unwrap())
+    /// .build(vinted_memcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
     /// .unwrap();
-    /// let client = memcache::Client::with_pool(pool);
+    /// let client = vinted_memcached::Client::with_pool(pool);
     /// let key = "key_to_append";
     /// client.set(key, "world!", 0).unwrap();
     /// client.prepend(key, "hello, ").unwrap();
@@ -264,11 +264,11 @@ impl Client {
     /// Example:
     ///
     /// ```rust
-    /// let pool = memcache::Pool::builder()
+    /// let pool = vinted_memcached::Pool::builder()
     /// .connection_timeout(std::time::Duration::from_secs(1))
-    /// .build(memcache::ConnectionManager::new("memcache://localhost:12345").unwrap())
+    /// .build(vinted_memcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
     /// .unwrap();
-    /// let client = memcache::Client::with_pool(pool);
+    /// let client = vinted_memcached::Client::with_pool(pool);
     /// client.delete("foo").unwrap();
     /// # client.flush().unwrap();
     /// ```
@@ -282,11 +282,11 @@ impl Client {
     /// Example:
     ///
     /// ```rust
-    /// let pool = memcache::Pool::builder()
+    /// let pool = vinted_memcached::Pool::builder()
     /// .connection_timeout(std::time::Duration::from_secs(1))
-    /// .build(memcache::ConnectionManager::new("memcache://localhost:12345").unwrap())
+    /// .build(vinted_memcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
     /// .unwrap();
-    /// let client = memcache::Client::with_pool(pool);
+    /// let client = vinted_memcached::Client::with_pool(pool);
     /// client.increment("counter", 42).unwrap();
     /// # client.flush().unwrap();
     /// ```
@@ -300,11 +300,11 @@ impl Client {
     /// Example:
     ///
     /// ```rust
-    /// let pool = memcache::Pool::builder()
+    /// let pool = vinted_memcached::Pool::builder()
     /// .connection_timeout(std::time::Duration::from_secs(1))
-    /// .build(memcache::ConnectionManager::new("memcache://localhost:12345").unwrap())
+    /// .build(vinted_memcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
     /// .unwrap();
-    /// let client = memcache::Client::with_pool(pool);
+    /// let client = vinted_memcached::Client::with_pool(pool);
     /// client.decrement("counter", 42).unwrap();
     /// # client.flush().unwrap();
     /// ```
@@ -318,14 +318,14 @@ impl Client {
     /// Example:
     ///
     /// ```rust
-    /// let pool = memcache::Pool::builder()
+    /// let pool = vinted_memcached::Pool::builder()
     /// .connection_timeout(std::time::Duration::from_secs(1))
-    /// .build(memcache::ConnectionManager::new("memcache://localhost:12345").unwrap())
+    /// .build(vinted_memcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
     /// .unwrap();
-    /// let client = memcache::Client::with_pool(pool);
-    /// assert_eq!(client.touch("not_exists_key", 12345).unwrap(), false);
+    /// let client = vinted_memcached::Client::with_pool(pool);
+    /// assert_eq!(client.touch("not_exists_key", 11211).unwrap(), false);
     /// client.set("foo", "bar", 123).unwrap();
-    /// assert_eq!(client.touch("foo", 12345).unwrap(), true);
+    /// assert_eq!(client.touch("foo", 11211).unwrap(), true);
     /// # client.flush().unwrap();
     /// ```
     pub fn touch(&self, key: &str, expiration: u32) -> Result<bool, MemcacheError> {
@@ -337,11 +337,11 @@ impl Client {
     ///
     /// Example:
     /// ```rust
-    /// let pool = memcache::Pool::builder()
+    /// let pool = vinted_memcached::Pool::builder()
     /// .connection_timeout(std::time::Duration::from_secs(1))
-    /// .build(memcache::ConnectionManager::new("memcache://localhost:12345").unwrap())
+    /// .build(vinted_memcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
     /// .unwrap();
-    /// let client = memcache::Client::with_pool(pool);
+    /// let client = vinted_memcached::Client::with_pool(pool);
     /// let stats = client.stats().unwrap();
     /// ```
     pub fn stats(&self) -> Result<Stats, MemcacheError> {
@@ -358,43 +358,14 @@ mod tests {
         let pool = r2d2::Pool::builder()
             .max_size(20)
             .connection_timeout(Duration::from_millis(500))
-            .build(ConnectionManager::new(target)?)?;
+            .build(ConnectionManager::new(target)?.set_ascii_protocol())?;
 
         Ok(Client::with_pool(pool))
     }
 
-    #[cfg(unix)]
-    #[test]
-    fn unix() {
-        let client = connect("memcache:///tmp/memcached.sock").unwrap();
-        assert!(client.version().unwrap() != "");
-    }
-
-    #[cfg(feature = "tls")]
-    #[test]
-    fn ssl_noverify() {
-        let client = connect("memcache+tls://localhost:12350?verify_mode=none").unwrap();
-        assert!(client.version().unwrap() != "");
-    }
-
-    #[cfg(feature = "tls")]
-    #[test]
-    fn ssl_verify() {
-        let client =
-            connect("memcache+tls://localhost:12350?ca_path=tests/assets/RUST_MEMCACHE_TEST_CERT.crt").unwrap();
-        assert!(client.version().unwrap() != "");
-    }
-
-    #[cfg(feature = "tls")]
-    #[test]
-    fn ssl_client_certs() {
-        let client = connect("memcache+tls://localhost:12351?key_path=tests/assets/client.key&cert_path=tests/assets/client.crt&ca_path=tests/assets/RUST_MEMCACHE_TEST_CERT.crt").unwrap();
-        assert!(client.version().unwrap() != "");
-    }
-
     #[test]
     fn delete() {
-        let client = connect("memcache://localhost:12345").unwrap();
+        let client = connect("memcache://localhost:11211").unwrap();
         client.set("an_exists_key", "value", 0).unwrap();
         assert_eq!(client.delete("an_exists_key").unwrap(), true);
         assert_eq!(client.delete("a_not_exists_key").unwrap(), false);
@@ -402,7 +373,7 @@ mod tests {
 
     #[test]
     fn increment() {
-        let client = connect("memcache://localhost:12345").unwrap();
+        let client = connect("memcache://localhost:11211").unwrap();
         client.delete("counter").unwrap();
         client.set("counter", 321, 0).unwrap();
         assert_eq!(client.increment("counter", 123).unwrap(), 444);

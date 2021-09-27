@@ -45,7 +45,7 @@ memcache = "*"
 // create connection with to memcached server node:
 let pool = memcache::Pool::builder()
   .connection_timeout(std::time::Duration::from_secs(1))
-  .build(memcache::ConnectionManager::new("memcache://localhost:12345").unwrap())
+  .build(memcache::ConnectionManager::new("memcache://localhost:11211").unwrap())
   .unwrap();
 
 let client = memcache::Client::with_pool(pool);

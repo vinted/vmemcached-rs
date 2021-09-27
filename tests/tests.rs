@@ -1,5 +1,5 @@
-extern crate memcache;
 extern crate rand;
+extern crate vinted_memcached;
 
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
@@ -21,7 +21,7 @@ fn gen_random_key() -> String {
 
 #[test]
 fn udp_test() {
-    let client = helpers::connect("memcache+udp://localhost:22345").unwrap();
+    let client = helpers::connect("memcache+udp://localhost:11211").unwrap();
 
     client.version().unwrap();
 
@@ -97,7 +97,7 @@ fn udp_test() {
         handles.push(Some(thread::spawn(move || {
             let key = format!("key{}", i);
             let value = format!("value{}", i);
-            let client = helpers::connect("memcache://localhost:22345?udp=true").unwrap();
+            let client = helpers::connect("memcache://localhost:11211?udp=true").unwrap();
             for j in 0..50 {
                 let value = format!("{}{}", value, j);
                 client.set(key.as_str(), &value, 0).unwrap();
@@ -138,8 +138,8 @@ fn udp_test() {
 #[test]
 fn test_cas() {
     let clients = vec![
-        helpers::connect("memcache://localhost:12345").unwrap(),
-        helpers::connect("memcache://localhost:12345?protocol=ascii").unwrap(),
+        helpers::connect("memcache://localhost:11211").unwrap(),
+        helpers::connect("memcache://localhost:11211?protocol=ascii").unwrap(),
     ];
     for client in clients {
         client.flush().unwrap();

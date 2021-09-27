@@ -1,0 +1,24 @@
+version: '3'
+
+services:
+  memcached:
+    logging:
+      driver: none
+    ports:
+      - "11211:11211/tcp"
+      - "11211:11211/udp"
+
+  mcrouter:
+    logging:
+      driver: none
+    ports:
+      - "11311:11311"
+    command: >
+      bash -c "mcrouter --config-str='{\"pools\":{\"A\":{\"servers\":[\"ci-memcached:11211\"]}},\"route\":\"PoolRoute|A\"}' -p 11311"
+
+networks:
+  default:
+    ipam:
+      driver: default
+      config:
+        - subnet: 2001:3984:3989::/64

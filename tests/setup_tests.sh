@@ -25,15 +25,6 @@ if [[ ! -f "$MEMCACHED" ]]; then
     popd
 fi
 
-echo "Starting memcached servers"
+echo "Starting memcached server"
 $MEMCACHED -V
-$MEMCACHED -p 12345 -d
-$MEMCACHED -p 12346 -d
-$MEMCACHED -p 12347 -d
-$MEMCACHED -p 12348 -d
-$MEMCACHED -p 12349 -d
-$MEMCACHED -p 12350 -d --enable-ssl -o "ssl_key=$SSL_KEY,ssl_chain_cert=$SSL_CERT"
-$MEMCACHED -p 12351 -d --enable-ssl -o "ssl_key=$SSL_KEY,ssl_chain_cert=$SSL_CERT,ssl_verify_mode=2,ssl_ca_cert=$SSL_ROOT_CERT"
-$MEMCACHED -U 22345 -d
-$MEMCACHED -s /tmp/memcached.sock -d
-$MEMCACHED -s /tmp/memcached2.sock -d
+$MEMCACHED -p 11211 -U 11211 -d
