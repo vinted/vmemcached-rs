@@ -14,6 +14,17 @@ The crate is called `memcache` and you can depend on it via cargo:
 [dependencies]
 vmemcached = "0.1.0"
 ```
+
+## Features
+
+ - ASCII protocol (because of mcrouter)
+ - Key interpreted as slice of u8 (bytes)
+ - Value is accepted as implementing Serialize and is stored as JSON using simd-json crate
+ - Not supported: increment/decrement/append/prepend/gets operations due to JSON and compression
+ - Feature: "compress" enable Brotli encoding/decoding
+ - Feature: "mcrouter" disables flush & flush_with_delay Client methods
+ - Feature: "tls" enables OpenSSL support
+
 ## Basic usage
 
 ```rust

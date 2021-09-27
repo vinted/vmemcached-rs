@@ -10,9 +10,10 @@ keywords = ["memcache", "memcached", "driver", "cache", "database"]
 edition = "2018"
 
 [features]
-default = ["tls"]
+default = []
 tls = ["openssl"]
 compress = ["brotli"]
+mcrouter = []
 
 [dependencies]
 url = { version = "2", default-features = false }
@@ -20,8 +21,9 @@ rand = { version = "0.8", default-features = false, features = ["std", "std_rng"
 openssl = { version = "^0.10", optional = true }
 r2d2 = { version = "0.8", default-features = false }
 serde = { version = "1", default-features = false }
-bincode = { version = "1.3", default-features = false }
 brotli = { version = "3.3", default-features = false, features = ["std"], optional = true }
+simd-json = { version = "0.4", default-features = true, features = ["serde_impl", "allow-non-simd"] }
 
 [dev-dependencies]
 lazy_static = "1.4"
+serde = { version = "1", default-features = false, features = ["derive"] }

@@ -219,8 +219,8 @@ pub enum MemcacheError {
     ParseError(ParseError),
     /// ConnectionPool errors
     PoolError(r2d2::Error),
-    /// Bincode error
-    Bincode(bincode::Error),
+    /// SIMD JSON error
+    Serde(simd_json::Error),
 }
 
 impl fmt::Display for MemcacheError {
@@ -235,7 +235,7 @@ impl fmt::Display for MemcacheError {
             MemcacheError::ServerError(ref err) => err.fmt(f),
             MemcacheError::CommandError(ref err) => err.fmt(f),
             MemcacheError::PoolError(ref err) => err.fmt(f),
-            MemcacheError::Bincode(ref err) => err.fmt(f),
+            MemcacheError::Serde(ref err) => err.fmt(f),
         }
     }
 }
@@ -252,7 +252,7 @@ impl error::Error for MemcacheError {
             MemcacheError::ServerError(_) => None,
             MemcacheError::CommandError(_) => None,
             MemcacheError::PoolError(ref p) => p.source(),
-            MemcacheError::Bincode(ref p) => p.source(),
+            MemcacheError::Serde(ref p) => p.source(),
         }
     }
 }
@@ -283,8 +283,8 @@ impl From<r2d2::Error> for MemcacheError {
     }
 }
 
-impl From<bincode::Error> for MemcacheError {
-    fn from(err: bincode::Error) -> MemcacheError {
-        MemcacheError::Bincode(err)
+impl From<simd_json::Error> for MemcacheError {
+    fn from(e: simd_json::Error) -> MemcacheError {
+        MemcacheError::Serde(e)
     }
 }

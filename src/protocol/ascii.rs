@@ -140,11 +140,13 @@ impl ProtocolTrait for AsciiProtocol<Stream> {
         })
     }
 
+    #[cfg(not(feature = "mcrouter"))]
     fn flush(&mut self) -> Result<(), MemcacheError> {
         write!(self.reader.get_mut(), "flush_all\r\n")?;
         self.parse_ok_response()
     }
 
+    #[cfg(not(feature = "mcrouter"))]
     fn flush_with_delay(&mut self, delay: u32) -> Result<(), MemcacheError> {
         write!(self.reader.get_mut(), "flush_all {}\r\n", delay)?;
         self.reader.get_mut().flush()?;
@@ -328,6 +330,7 @@ impl AsciiProtocol<Stream> {
         })
     }
 
+    #[cfg(not(feature = "mcrouter"))]
     fn parse_ok_response(&mut self) -> Result<(), MemcacheError> {
         self.reader.read_line(|response| {
             let response = MemcacheError::try_from(response)?;

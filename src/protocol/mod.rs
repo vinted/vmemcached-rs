@@ -10,7 +10,9 @@ pub(crate) use crate::protocol::ascii::AsciiProtocol;
 pub(crate) trait ProtocolTrait {
     fn auth(&mut self, username: &str, password: &str) -> Result<(), MemcacheError>;
     fn version(&mut self) -> Result<String, MemcacheError>;
+    #[cfg(not(feature = "mcrouter"))]
     fn flush(&mut self) -> Result<(), MemcacheError>;
+    #[cfg(not(feature = "mcrouter"))]
     fn flush_with_delay(&mut self, delay: u32) -> Result<(), MemcacheError>;
     fn get<K: AsRef<[u8]>, T: DeserializeOwned>(&mut self, key: K) -> Result<Option<T>, MemcacheError>;
     fn set<K: AsRef<[u8]>, T: Serialize>(&mut self, key: K, value: T, expiration: u32) -> Result<(), MemcacheError>;

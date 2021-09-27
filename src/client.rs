@@ -66,6 +66,7 @@ impl Client {
     /// let client = vmemcached::Client::with_pool(pool);
     /// client.flush().unwrap();
     /// ```
+    #[cfg(not(feature = "mcrouter"))]
     pub fn flush(&self) -> Result<(), MemcacheError> {
         self.get_connection()?.flush()
     }
@@ -82,6 +83,7 @@ impl Client {
     /// let client = vmemcached::Client::with_pool(pool);
     /// client.flush_with_delay(10).unwrap();
     /// ```
+    #[cfg(not(feature = "mcrouter"))]
     pub fn flush_with_delay(&self, delay: u32) -> Result<(), MemcacheError> {
         self.get_connection()?.flush_with_delay(delay)
     }
