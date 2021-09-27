@@ -7,7 +7,6 @@ mod client;
 mod codec;
 mod connection;
 mod error;
-mod parser;
 mod protocol;
 mod stream;
 mod value;
