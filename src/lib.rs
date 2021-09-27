@@ -4,6 +4,7 @@
 extern crate openssl;
 
 mod client;
+mod codec;
 mod connection;
 mod error;
 mod parser;
@@ -15,7 +16,7 @@ pub use crate::client::Client;
 pub use crate::connection::ConnectionManager;
 pub use crate::error::{ClientError, CommandError, MemcacheError, ServerError};
 pub use crate::stream::Stream;
-pub use crate::value::{FromMemcacheValue, FromMemcacheValueExt, ToMemcacheValue};
+pub use crate::value::{FromMemcacheValue, ToMemcacheValue};
 pub use r2d2::Error as PoolError;
 
 /// R2D2 connection pool

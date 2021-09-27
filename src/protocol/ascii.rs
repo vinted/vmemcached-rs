@@ -1,12 +1,14 @@
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 use std::collections::HashMap;
 use std::fmt;
 use std::io::{Read, Write};
 
 use super::ProtocolTrait;
 use crate::client::Stats;
+use crate::codec;
 use crate::error::{ClientError, CommandError, MemcacheError, ServerError};
 use crate::stream::Stream;
-use crate::value::{FromMemcacheValueExt, ToMemcacheValue};
 use std::borrow::Cow;
 
 #[derive(Default)]
@@ -14,17 +16,13 @@ pub struct Options {
     pub noreply: bool,
     pub exptime: u32,
     pub flags: u32,
-    pub cas: Option<u64>,
 }
 
 #[derive(PartialEq)]
 enum StoreCommand {
-    Cas,
     Set,
     Add,
     Replace,
-    Append,
-    Prepend,
 }
 
 const END: &'static str = "END\r\n";
@@ -35,9 +33,6 @@ impl fmt::Display for StoreCommand {
             StoreCommand::Set => write!(f, "set"),
             StoreCommand::Add => write!(f, "add"),
             StoreCommand::Replace => write!(f, "replace"),
-            StoreCommand::Append => write!(f, "append"),
-            StoreCommand::Prepend => write!(f, "prepend"),
-            StoreCommand::Cas => write!(f, "cas"),
         }
     }
 }
@@ -155,18 +150,18 @@ impl ProtocolTrait for AsciiProtocol<Stream> {
         self.parse_ok_response()
     }
 
-    fn get<K: AsRef<[u8]>, V: FromMemcacheValueExt>(&mut self, key: K) -> Result<Option<V>, MemcacheError> {
+    fn get<K: AsRef<[u8]>, T: DeserializeOwned>(&mut self, key: K) -> Result<Option<T>, MemcacheError> {
         let reader = self.reader.get_mut();
         let _ = reader.write(b"get ");
         let _ = reader.write(key.as_ref());
         let _ = reader.write(b"\r\n");
 
-        if let Some((k, v)) = self.parse_get_response(false)? {
+        if let Some((k, v)) = self.parse_get_response()? {
             if k.as_bytes() != key.as_ref() {
                 Err(ServerError::BadResponse(Cow::Borrowed(
                     "key doesn't match in the response",
                 )))?
-            } else if self.parse_get_response::<V>(false)?.is_none() {
+            } else if self.parse_get_response::<T>()?.is_none() {
                 Ok(Some(v))
             } else {
                 Err(ServerError::BadResponse(Cow::Borrowed("Expected end of get response")))?
@@ -176,64 +171,7 @@ impl ProtocolTrait for AsciiProtocol<Stream> {
         }
     }
 
-    fn gets<K, I, T>(&mut self, keys: I) -> Result<HashMap<String, T>, MemcacheError>
-    where
-        T: FromMemcacheValueExt,
-        I: IntoIterator<Item = K>,
-        K: AsRef<[u8]>,
-    {
-        let reader = self.reader.get_mut();
-        let _ = reader.write(b"gets");
-        let keys_iter = keys.into_iter();
-        let mut keys_length: usize = 0;
-        for key in keys_iter {
-            let _ = reader.write(b" ");
-            let _ = reader.write(key.as_ref());
-            keys_length += 1;
-        }
-        let _ = reader.write(b"\r\n");
-
-        let mut result: HashMap<String, T> = HashMap::with_capacity(keys_length);
-        // there will be atmost keys.len() "VALUE <...>" responses and one END response
-        for _ in 0..=keys_length {
-            match self.parse_get_response(true)? {
-                Some((key, value)) => {
-                    result.insert(key, value);
-                }
-                None => return Ok(result),
-            }
-        }
-
-        Err(ServerError::BadResponse(Cow::Borrowed("Expected end of gets response")))?
-    }
-
-    fn cas<K: AsRef<[u8]>, T: ToMemcacheValue<Stream>>(
-        &mut self,
-        key: K,
-        value: T,
-        expiration: u32,
-        cas: u64,
-    ) -> Result<bool, MemcacheError> {
-        let options = Options {
-            exptime: expiration,
-            cas: Some(cas),
-            ..Default::default()
-        };
-        match self.store(StoreCommand::Cas, key, value, &options) {
-            Ok(t) => Ok(t),
-            Err(MemcacheError::CommandError(e)) if e == CommandError::KeyExists || e == CommandError::KeyNotFound => {
-                Ok(false)
-            }
-            e => e,
-        }
-    }
-
-    fn set<K: AsRef<[u8]>, T: ToMemcacheValue<Stream>>(
-        &mut self,
-        key: K,
-        value: T,
-        expiration: u32,
-    ) -> Result<(), MemcacheError> {
+    fn set<K: AsRef<[u8]>, T: Serialize>(&mut self, key: K, value: T, expiration: u32) -> Result<(), MemcacheError> {
         let options = Options {
             exptime: expiration,
             ..Default::default()
@@ -241,12 +179,7 @@ impl ProtocolTrait for AsciiProtocol<Stream> {
         self.store(StoreCommand::Set, key.as_ref(), value, &options).map(|_| ())
     }
 
-    fn add<K: AsRef<[u8]>, T: ToMemcacheValue<Stream>>(
-        &mut self,
-        key: K,
-        value: T,
-        expiration: u32,
-    ) -> Result<(), MemcacheError> {
+    fn add<K: AsRef<[u8]>, T: Serialize>(&mut self, key: K, value: T, expiration: u32) -> Result<(), MemcacheError> {
         let options = Options {
             exptime: expiration,
             ..Default::default()
@@ -254,7 +187,7 @@ impl ProtocolTrait for AsciiProtocol<Stream> {
         self.store(StoreCommand::Add, key, value, &options).map(|_| ())
     }
 
-    fn replace<K: AsRef<[u8]>, T: ToMemcacheValue<Stream>>(
+    fn replace<K: AsRef<[u8]>, T: Serialize>(
         &mut self,
         key: K,
         value: T,
@@ -265,16 +198,6 @@ impl ProtocolTrait for AsciiProtocol<Stream> {
             ..Default::default()
         };
         self.store(StoreCommand::Replace, key, value, &options).map(|_| ())
-    }
-
-    fn append<K: AsRef<[u8]>, T: ToMemcacheValue<Stream>>(&mut self, key: K, value: T) -> Result<(), MemcacheError> {
-        self.store(StoreCommand::Append, key, value, &Default::default())
-            .map(|_| ())
-    }
-
-    fn prepend<K: AsRef<[u8]>, T: ToMemcacheValue<Stream>>(&mut self, key: K, value: T) -> Result<(), MemcacheError> {
-        self.store(StoreCommand::Prepend, key, value, &Default::default())
-            .map(|_| ())
     }
 
     fn delete<K: AsRef<[u8]>>(&mut self, key: K) -> Result<bool, MemcacheError> {
@@ -295,22 +218,6 @@ impl ProtocolTrait for AsciiProtocol<Stream> {
                 Err(MemcacheError::CommandError(CommandError::KeyNotFound)) => Ok(false),
                 Err(e) => Err(e),
             })
-    }
-
-    fn increment<K: AsRef<[u8]>>(&mut self, key: K, amount: u64) -> Result<u64, MemcacheError> {
-        let reader = self.reader.get_mut();
-        let _ = reader.write(b"incr ")?;
-        let _ = reader.write(key.as_ref())?;
-        write!(reader, " {}\r\n", amount)?;
-        self.parse_u64_response()
-    }
-
-    fn decrement<K: AsRef<[u8]>>(&mut self, key: K, amount: u64) -> Result<u64, MemcacheError> {
-        let reader = self.reader.get_mut();
-        let _ = reader.write(b"decr ")?;
-        let _ = reader.write(key.as_ref())?;
-        write!(reader, " {}\r\n", amount)?;
-        self.parse_u64_response()
     }
 
     fn touch<K: AsRef<[u8]>>(&mut self, key: K, expiration: u32) -> Result<bool, MemcacheError> {
@@ -377,48 +284,31 @@ impl AsciiProtocol<Stream> {
         }
     }
 
-    fn store<K: AsRef<[u8]>, T: ToMemcacheValue<Stream>>(
+    fn store<K: AsRef<[u8]>, T: Serialize>(
         &mut self,
         command: StoreCommand,
         key: K,
         value: T,
         options: &Options,
     ) -> Result<bool, MemcacheError> {
-        if command == StoreCommand::Cas {
-            if options.cas.is_none() {
-                Err(ClientError::Error(Cow::Borrowed(
-                    "cas_id should be present when using cas command",
-                )))?;
-            }
-        }
+        let encoded = codec::encode(value)?;
+
         let noreply = if options.noreply { " noreply" } else { "" };
         let reader = self.reader.get_mut();
         let _ = reader.write(format!("{} ", command).as_ref())?;
         let _ = reader.write(key.as_ref())?;
-        if options.cas.is_some() {
-            write!(
-                reader,
-                " {flags} {exptime} {vlen} {cas}{noreply}\r\n",
-                flags = value.get_flags(),
-                exptime = options.exptime,
-                vlen = value.get_length(),
-                cas = options.cas.unwrap(),
-                noreply = noreply
-            )?;
-        } else {
-            write!(
-                self.reader.get_mut(),
-                " {flags} {exptime} {vlen}{noreply}\r\n",
-                flags = value.get_flags(),
-                exptime = options.exptime,
-                vlen = value.get_length(),
-                noreply = noreply
-            )?;
-        }
+        write!(
+            reader,
+            " {flags} {exptime} {vlen}{noreply}\r\n",
+            flags = 0,
+            exptime = options.exptime,
+            vlen = encoded.len(),
+            noreply = noreply
+        )?;
 
-        value.write_to(self.reader.get_mut())?;
-        self.reader.get_mut().write(b"\r\n")?;
-        self.reader.get_mut().flush()?;
+        let _ = reader.write_all(&encoded)?;
+        let _ = reader.write(b"\r\n")?;
+        let _ = reader.flush()?;
 
         if options.noreply {
             return Ok(true);
@@ -447,10 +337,7 @@ impl AsciiProtocol<Stream> {
         })
     }
 
-    fn parse_get_response<V: FromMemcacheValueExt>(
-        &mut self,
-        has_cas: bool,
-    ) -> Result<Option<(String, V)>, MemcacheError> {
+    fn parse_get_response<T: DeserializeOwned>(&mut self) -> Result<Option<(String, T)>, MemcacheError> {
         let result = self.reader.read_line(|buf| {
             let buf = MemcacheError::try_from(buf)?;
             if buf == END {
@@ -469,14 +356,13 @@ impl AsciiProtocol<Stream> {
             let key = next_or_err()?;
             let flags: u32 = next_or_err()?.parse()?;
             let length: usize = next_or_err()?.parse()?;
-            let cas: Option<u64> = if has_cas { Some(next_or_err()?.parse()?) } else { None };
             if header.next().is_some() {
                 return Err(ServerError::BadResponse(Cow::Owned(buf.into())))?;
             }
-            Ok(Some((key.to_string(), flags, length, cas)))
+            Ok(Some((key.to_string(), flags, length)))
         })?;
         match result {
-            Some((key, flags, length, cas)) => {
+            Some((key, _flags, length)) => {
                 let mut value = vec![0u8; length + 2];
                 self.reader.read_exact(value.as_mut_slice())?;
                 if &value[length..] != b"\r\n" {
@@ -486,17 +372,10 @@ impl AsciiProtocol<Stream> {
                 value.pop();
                 value.pop();
                 value.shrink_to_fit();
-                let value = FromMemcacheValueExt::from_memcache_value(value, flags, cas)?;
+                let value = codec::decode(value)?;
                 Ok(Some((key.to_string(), value)))
             }
             None => Ok(None),
         }
-    }
-
-    fn parse_u64_response(&mut self) -> Result<u64, MemcacheError> {
-        self.reader.read_line(|response| {
-            let s = MemcacheError::try_from(response)?;
-            Ok(s.trim_end_matches("\r\n").parse::<u64>()?)
-        })
     }
 }

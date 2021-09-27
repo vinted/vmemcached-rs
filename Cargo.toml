@@ -15,7 +15,6 @@ tls = ["openssl"]
 compress = ["brotli"]
 
 [dependencies]
-byteorder = "1"
 url = { version = "2", default-features = false }
 rand = { version = "0.8", default-features = false, features = ["std", "std_rng"] }
 openssl = { version = "^0.10", optional = true }

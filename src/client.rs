@@ -1,12 +1,12 @@
 use r2d2::Pool;
 use r2d2::PooledConnection;
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 use std::collections::HashMap;
 
 use crate::connection::ConnectionManager;
 use crate::error::{ClientError, MemcacheError};
 use crate::protocol::ProtocolTrait;
-use crate::stream::Stream;
-use crate::value::{FromMemcacheValueExt, ToMemcacheValue};
 
 pub type Stats = HashMap<String, String>;
 
@@ -95,31 +95,9 @@ impl Client {
     /// let client = vinted_memcached::Client::with_pool(pool);
     /// let _: Option<String> = client.get("foo").unwrap();
     /// ```
-    pub fn get<V: FromMemcacheValueExt>(&self, key: &str) -> Result<Option<V>, MemcacheError> {
+    pub fn get<T: DeserializeOwned>(&self, key: &str) -> Result<Option<T>, MemcacheError> {
         check_key_len(key)?;
         self.get_connection()?.get(key)
-    }
-
-    /// Get multiple keys from memcached server. Using this function instead of calling `get` multiple times can reduce network workloads.
-    ///
-    /// Example:
-    ///
-    /// ```rust
-    /// let pool = vinted_memcached::Pool::builder()
-    /// .connection_timeout(std::time::Duration::from_secs(1))
-    /// .build(vinted_memcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
-    /// .unwrap();
-    /// let client = vinted_memcached::Client::with_pool(pool);
-    /// client.set("food", "42", 0).unwrap();
-    /// let result: std::collections::HashMap<String, String> = client.gets(&["food", "bar", "baz"]).unwrap();
-    /// assert_eq!(result.len(), 1);
-    /// assert_eq!(result["food"], "42");
-    /// ```
-    pub fn gets<V: FromMemcacheValueExt>(&self, keys: &[&str]) -> Result<HashMap<String, V>, MemcacheError> {
-        for key in keys {
-            check_key_len(key)?;
-        }
-        self.get_connection()?.gets(keys)
     }
 
     /// Set a key with associate value into memcached server with expiration seconds.
@@ -135,39 +113,9 @@ impl Client {
     /// client.set("foo", "bar", 10).unwrap();
     /// # client.flush().unwrap();
     /// ```
-    pub fn set<V: ToMemcacheValue<Stream>>(&self, key: &str, value: V, expiration: u32) -> Result<(), MemcacheError> {
+    pub fn set<T: Serialize>(&self, key: &str, value: T, expiration: u32) -> Result<(), MemcacheError> {
         check_key_len(key)?;
         self.get_connection()?.set(key, value, expiration)
-    }
-
-    /// Compare and swap a key with the associate value into memcached server with expiration seconds.
-    /// `cas_id` should be obtained from a previous `gets` call.
-    ///
-    /// Example:
-    ///
-    /// ```rust
-    /// use std::collections::HashMap;
-    /// let pool = vinted_memcached::Pool::builder()
-    /// .connection_timeout(std::time::Duration::from_secs(1))
-    /// .build(vinted_memcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
-    /// .unwrap();
-    /// let client = vinted_memcached::Client::with_pool(pool);
-    /// client.set("foo", "bar", 10).unwrap();
-    /// let result: HashMap<String, (Vec<u8>, u32, Option<u64>)> = client.gets(&["foo"]).unwrap();
-    /// let (_, _, cas) = result.get("foo").unwrap();
-    /// let cas = cas.unwrap();
-    /// assert_eq!(true, client.cas("foo", "bar2", 10, cas).unwrap());
-    /// # client.flush().unwrap();
-    /// ```
-    pub fn cas<V: ToMemcacheValue<Stream>>(
-        &self,
-        key: &str,
-        value: V,
-        expiration: u32,
-        cas_id: u64,
-    ) -> Result<bool, MemcacheError> {
-        check_key_len(key)?;
-        self.get_connection()?.cas(key, value, expiration, cas_id)
     }
 
     /// Add a key with associate value into memcached server with expiration seconds.
@@ -185,7 +133,7 @@ impl Client {
     /// client.add(key, "bar", 100000000).unwrap();
     /// # client.flush().unwrap();
     /// ```
-    pub fn add<V: ToMemcacheValue<Stream>>(&self, key: &str, value: V, expiration: u32) -> Result<(), MemcacheError> {
+    pub fn add<T: Serialize>(&self, key: &str, value: T, expiration: u32) -> Result<(), MemcacheError> {
         check_key_len(key)?;
         self.get_connection()?.add(key, value, expiration)
     }
@@ -205,58 +153,9 @@ impl Client {
     /// client.replace(key, "baz", 100000000).unwrap();
     /// # client.flush().unwrap();
     /// ```
-    pub fn replace<V: ToMemcacheValue<Stream>>(
-        &self,
-        key: &str,
-        value: V,
-        expiration: u32,
-    ) -> Result<(), MemcacheError> {
+    pub fn replace<T: Serialize>(&self, key: &str, value: T, expiration: u32) -> Result<(), MemcacheError> {
         check_key_len(key)?;
         self.get_connection()?.replace(key, value, expiration)
-    }
-
-    /// Append value to the key.
-    ///
-    /// Example:
-    ///
-    /// ```rust
-    /// let pool = vinted_memcached::Pool::builder()
-    /// .connection_timeout(std::time::Duration::from_secs(1))
-    /// .build(vinted_memcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
-    /// .unwrap();
-    /// let client = vinted_memcached::Client::with_pool(pool);
-    /// let key = "key_to_append";
-    /// client.set(key, "hello", 0).unwrap();
-    /// client.append(key, ", world!").unwrap();
-    /// let result: String = client.get(key).unwrap().unwrap();
-    /// assert_eq!(result, "hello, world!");
-    /// # client.flush().unwrap();
-    /// ```
-    pub fn append<V: ToMemcacheValue<Stream>>(&self, key: &str, value: V) -> Result<(), MemcacheError> {
-        check_key_len(key)?;
-        self.get_connection()?.append(key, value)
-    }
-
-    /// Prepend value to the key.
-    ///
-    /// Example:
-    ///
-    /// ```rust
-    /// let pool = vinted_memcached::Pool::builder()
-    /// .connection_timeout(std::time::Duration::from_secs(1))
-    /// .build(vinted_memcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
-    /// .unwrap();
-    /// let client = vinted_memcached::Client::with_pool(pool);
-    /// let key = "key_to_append";
-    /// client.set(key, "world!", 0).unwrap();
-    /// client.prepend(key, "hello, ").unwrap();
-    /// let result: String = client.get(key).unwrap().unwrap();
-    /// assert_eq!(result, "hello, world!");
-    /// # client.flush().unwrap();
-    /// ```
-    pub fn prepend<V: ToMemcacheValue<Stream>>(&self, key: &str, value: V) -> Result<(), MemcacheError> {
-        check_key_len(key)?;
-        self.get_connection()?.prepend(key, value)
     }
 
     /// Delete a key from memcached server.
@@ -275,44 +174,6 @@ impl Client {
     pub fn delete(&self, key: &str) -> Result<bool, MemcacheError> {
         check_key_len(key)?;
         self.get_connection()?.delete(key)
-    }
-
-    /// Increment the value with amount.
-    ///
-    /// Example:
-    ///
-    /// ```rust
-    /// let pool = vinted_memcached::Pool::builder()
-    /// .connection_timeout(std::time::Duration::from_secs(1))
-    /// .build(vinted_memcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
-    /// .unwrap();
-    /// let client = vinted_memcached::Client::with_pool(pool);
-    /// client.set("counterA", 2, 3).unwrap();
-    /// client.increment("counterA", 3).unwrap();
-    /// # client.flush().unwrap();
-    /// ```
-    pub fn increment(&self, key: &str, amount: u64) -> Result<u64, MemcacheError> {
-        check_key_len(key)?;
-        self.get_connection()?.increment(key, amount)
-    }
-
-    /// Decrement the value with amount.
-    ///
-    /// Example:
-    ///
-    /// ```rust
-    /// let pool = vinted_memcached::Pool::builder()
-    /// .connection_timeout(std::time::Duration::from_secs(1))
-    /// .build(vinted_memcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
-    /// .unwrap();
-    /// let client = vinted_memcached::Client::with_pool(pool);
-    /// client.set("counterB", 4, 3).unwrap();
-    /// client.decrement("counterB", 3).unwrap();
-    /// # client.flush().unwrap();
-    /// ```
-    pub fn decrement(&self, key: &str, amount: u64) -> Result<u64, MemcacheError> {
-        check_key_len(key)?;
-        self.get_connection()?.decrement(key, amount)
     }
 
     /// Set a new expiration time for a exist key.
@@ -371,13 +232,5 @@ mod tests {
         client.set("an_exists_key", "value", 0).unwrap();
         assert_eq!(client.delete("an_exists_key").unwrap(), true);
         assert_eq!(client.delete("a_not_exists_key").unwrap(), false);
-    }
-
-    #[test]
-    fn increment() {
-        let client = connect("memcache://localhost:11211").unwrap();
-        client.delete("counter").unwrap();
-        client.set("counter", 321, 0).unwrap();
-        assert_eq!(client.increment("counter", 123).unwrap(), 444);
     }
 }

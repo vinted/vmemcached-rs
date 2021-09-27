@@ -27,4 +27,4 @@ fi
 
 echo "Starting memcached server"
 $MEMCACHED -V
-$MEMCACHED -p 11211 -U 11211 -d
+$MEMCACHED -p 11211 -d
