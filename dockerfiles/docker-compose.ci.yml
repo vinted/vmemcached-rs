@@ -6,7 +6,6 @@ services:
       driver: none
     ports:
       - "11211:11211/tcp"
-      - "11211:11211/udp"
 
   mcrouter:
     logging:

@@ -155,11 +155,14 @@ impl ProtocolTrait for AsciiProtocol<Stream> {
         self.parse_ok_response()
     }
 
-    fn get<V: FromMemcacheValueExt>(&mut self, key: &str) -> Result<Option<V>, MemcacheError> {
-        write!(self.reader.get_mut(), "get {}\r\n", key)?;
+    fn get<K: AsRef<[u8]>, V: FromMemcacheValueExt>(&mut self, key: K) -> Result<Option<V>, MemcacheError> {
+        let reader = self.reader.get_mut();
+        let _ = reader.write(b"get ");
+        let _ = reader.write(key.as_ref());
+        let _ = reader.write(b"\r\n");
 
         if let Some((k, v)) = self.parse_get_response(false)? {
-            if k != key {
+            if k.as_bytes() != key.as_ref() {
                 Err(ServerError::BadResponse(Cow::Borrowed(
                     "key doesn't match in the response",
                 )))?
@@ -173,12 +176,26 @@ impl ProtocolTrait for AsciiProtocol<Stream> {
         }
     }
 
-    fn gets<V: FromMemcacheValueExt>(&mut self, keys: &[&str]) -> Result<HashMap<String, V>, MemcacheError> {
-        write!(self.reader.get_mut(), "gets {}\r\n", keys.join(" "))?;
+    fn gets<K, I, T>(&mut self, keys: I) -> Result<HashMap<String, T>, MemcacheError>
+    where
+        T: FromMemcacheValueExt,
+        I: IntoIterator<Item = K>,
+        K: AsRef<[u8]>,
+    {
+        let reader = self.reader.get_mut();
+        let _ = reader.write(b"gets");
+        let keys_iter = keys.into_iter();
+        let mut keys_length: usize = 0;
+        for key in keys_iter {
+            let _ = reader.write(b" ");
+            let _ = reader.write(key.as_ref());
+            keys_length += 1;
+        }
+        let _ = reader.write(b"\r\n");
 
-        let mut result: HashMap<String, V> = HashMap::with_capacity(keys.len());
+        let mut result: HashMap<String, T> = HashMap::with_capacity(keys_length);
         // there will be atmost keys.len() "VALUE <...>" responses and one END response
-        for _ in 0..=keys.len() {
+        for _ in 0..=keys_length {
             match self.parse_get_response(true)? {
                 Some((key, value)) => {
                     result.insert(key, value);

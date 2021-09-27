@@ -27,7 +27,6 @@ memcache = "*"
   - [x] ASCII protocol
 - [x] All memcached supported connections
   - [x] TCP connection
-  - [x] UDP connection
   - [x] UNIX Domain socket connection
   - [x] TLS connection
 - [ ] Encodings

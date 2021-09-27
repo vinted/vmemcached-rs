@@ -1,4 +1,7 @@
 use std::fmt;
+
+use crate::MemcacheError;
+
 mod ascii;
 pub use ascii::{parse_ascii_metadump_response, parse_ascii_response, parse_ascii_stats_response};
 
@@ -135,9 +138,7 @@ impl fmt::Display for ErrorKind {
 impl From<MetadumpResponse> for Status {
     fn from(resp: MetadumpResponse) -> Self {
         match resp {
-            MetadumpResponse::BadClass(s) => {
-                Status::Error(ErrorKind::Generic(format!("BADCLASS {}", s)))
-            }
+            MetadumpResponse::BadClass(s) => Status::Error(ErrorKind::Generic(format!("BADCLASS {}", s))),
             MetadumpResponse::Busy(s) => Status::Error(ErrorKind::Generic(format!("BUSY {}", s))),
             _ => unreachable!("Metadump Entry/End states should never be used as a Status!"),
         }

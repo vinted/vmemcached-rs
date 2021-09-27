@@ -1,30 +1,23 @@
 mod ascii;
-mod binary;
-mod binary_packet;
 
 use crate::client::Stats;
 use crate::error::MemcacheError;
 pub(crate) use crate::protocol::ascii::AsciiProtocol;
-pub(crate) use crate::protocol::binary::BinaryProtocol;
 use crate::stream::Stream;
 use crate::value::{FromMemcacheValueExt, ToMemcacheValue};
-use enum_dispatch::enum_dispatch;
 use std::collections::HashMap;
 
-#[enum_dispatch]
-pub enum Protocol {
-    Ascii(AsciiProtocol<Stream>),
-    Binary(BinaryProtocol),
-}
-
-#[enum_dispatch(Protocol)]
 pub trait ProtocolTrait {
     fn auth(&mut self, username: &str, password: &str) -> Result<(), MemcacheError>;
     fn version(&mut self) -> Result<String, MemcacheError>;
     fn flush(&mut self) -> Result<(), MemcacheError>;
     fn flush_with_delay(&mut self, delay: u32) -> Result<(), MemcacheError>;
-    fn get<V: FromMemcacheValueExt>(&mut self, key: &str) -> Result<Option<V>, MemcacheError>;
-    fn gets<V: FromMemcacheValueExt>(&mut self, keys: &[&str]) -> Result<HashMap<String, V>, MemcacheError>;
+    fn get<K: AsRef<[u8]>, T: FromMemcacheValueExt>(&mut self, key: K) -> Result<Option<T>, MemcacheError>;
+    fn gets<K, I, T>(&mut self, keys: I) -> Result<HashMap<String, T>, MemcacheError>
+    where
+        T: FromMemcacheValueExt,
+        I: IntoIterator<Item = K>,
+        K: AsRef<[u8]>;
     fn set<V: ToMemcacheValue<Stream>>(&mut self, key: &str, value: V, expiration: u32) -> Result<(), MemcacheError>;
     fn cas<V: ToMemcacheValue<Stream>>(
         &mut self,

@@ -1,7 +1,6 @@
 //! Vinted Rust memcache
 
 extern crate byteorder;
-extern crate enum_dispatch;
 #[cfg(feature = "tls")]
 extern crate openssl;
 extern crate r2d2;

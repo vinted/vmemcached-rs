@@ -110,10 +110,10 @@ impl Client {
     /// .build(vinted_memcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
     /// .unwrap();
     /// let client = vinted_memcached::Client::with_pool(pool);
-    /// client.set("foo", "42", 0).unwrap();
-    /// let result: std::collections::HashMap<String, String> = client.gets(&["foo", "bar", "baz"]).unwrap();
+    /// client.set("food", "42", 0).unwrap();
+    /// let result: std::collections::HashMap<String, String> = client.gets(&["food", "bar", "baz"]).unwrap();
     /// assert_eq!(result.len(), 1);
-    /// assert_eq!(result["foo"], "42");
+    /// assert_eq!(result["food"], "42");
     /// ```
     pub fn gets<V: FromMemcacheValueExt>(&self, keys: &[&str]) -> Result<HashMap<String, V>, MemcacheError> {
         for key in keys {
@@ -287,7 +287,8 @@ impl Client {
     /// .build(vinted_memcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
     /// .unwrap();
     /// let client = vinted_memcached::Client::with_pool(pool);
-    /// client.increment("counter", 42).unwrap();
+    /// client.set("counterA", 2, 3).unwrap();
+    /// client.increment("counterA", 3).unwrap();
     /// # client.flush().unwrap();
     /// ```
     pub fn increment(&self, key: &str, amount: u64) -> Result<u64, MemcacheError> {
@@ -305,7 +306,8 @@ impl Client {
     /// .build(vinted_memcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
     /// .unwrap();
     /// let client = vinted_memcached::Client::with_pool(pool);
-    /// client.decrement("counter", 42).unwrap();
+    /// client.set("counterB", 4, 3).unwrap();
+    /// client.decrement("counterB", 3).unwrap();
     /// # client.flush().unwrap();
     /// ```
     pub fn decrement(&self, key: &str, amount: u64) -> Result<u64, MemcacheError> {

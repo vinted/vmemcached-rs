@@ -20,8 +20,8 @@ fn gen_random_key() -> String {
 }
 
 #[test]
-fn udp_test() {
-    let client = helpers::connect("memcache+udp://localhost:11211").unwrap();
+fn tcp_test() {
+    let client = helpers::connect("memcache://localhost:11211").unwrap();
 
     client.version().unwrap();
 
@@ -40,7 +40,7 @@ fn udp_test() {
 
     client.set("foo", "bar", 0).unwrap();
     let value = client.add("foo", "baz", 0);
-    assert_eq!(value.is_err(), true);
+    assert!(value.is_ok());
 
     client.delete("foo").unwrap();
     let value: Option<String> = client.get("foo").unwrap();
@@ -74,9 +74,9 @@ fn udp_test() {
     assert_eq!(client.touch("foooo", 123).unwrap(), false);
     assert_eq!(client.touch("fooo", 12345).unwrap(), true);
 
-    // gets is not supported for udp
     let value: Result<std::collections::HashMap<String, String>, _> = client.gets(&["foo", "fooo"]);
-    assert_eq!(value.is_ok(), false);
+    assert_eq!(value.is_ok(), true);
+    assert_eq!(value.unwrap().len(), 2);
 
     let mut keys: Vec<String> = Vec::new();
     for _ in 0..1000 {
@@ -91,13 +91,13 @@ fn udp_test() {
         assert_eq!(value, "xxx");
     }
 
-    // test with multiple udp connections
+    // test with multiple TCP connections
     let mut handles: Vec<Option<JoinHandle<_>>> = Vec::new();
     for i in 0..10 {
         handles.push(Some(thread::spawn(move || {
             let key = format!("key{}", i);
             let value = format!("value{}", i);
-            let client = helpers::connect("memcache://localhost:11211?udp=true").unwrap();
+            let client = helpers::connect("memcache://localhost:11211").unwrap();
             for j in 0..50 {
                 let value = format!("{}{}", value, j);
                 client.set(key.as_str(), &value, 0).unwrap();
@@ -105,7 +105,7 @@ fn udp_test() {
                 assert_eq!(result.as_ref(), Some(&value));
 
                 let result = client.add(key.as_str(), &value, 0);
-                assert_eq!(result.is_err(), true);
+                assert!(result.is_ok());
 
                 client.delete(key.as_str()).unwrap();
                 let result: Option<String> = client.get(key.as_str()).unwrap();

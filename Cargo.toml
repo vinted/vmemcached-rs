@@ -18,7 +18,6 @@ compress = ["brotli"]
 byteorder = "1"
 url = { version = "2", default-features = false }
 rand = { version = "0.8", default-features = false, features = ["std", "std_rng"] }
-enum_dispatch = "0.3"
 openssl = { version = "^0.10", optional = true }
 r2d2 = { version = "0.8", default-features = false }
 serde = { version = "1", default-features = false }

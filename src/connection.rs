@@ -7,15 +7,14 @@ use url::Url;
 
 use crate::error::MemcacheError;
 
-use crate::protocol::{AsciiProtocol, BinaryProtocol, Protocol, ProtocolTrait};
+use crate::protocol::{AsciiProtocol, ProtocolTrait};
 use crate::stream::Stream;
-use crate::stream::UdpStream;
 #[cfg(feature = "tls")]
 use openssl::ssl::{SslConnector, SslFiletype, SslMethod, SslVerifyMode};
 use r2d2::ManageConnection;
 
 /// A connection to the memcached server
-pub struct Connection(Protocol);
+pub struct Connection(AsciiProtocol<Stream>);
 
 impl DerefMut for Connection {
     fn deref_mut(&mut self) -> &mut Self::Target {
@@ -24,7 +23,7 @@ impl DerefMut for Connection {
 }
 
 impl Deref for Connection {
-    type Target = Protocol;
+    type Target = AsciiProtocol<Stream>;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
@@ -86,7 +85,6 @@ impl ManageConnection for ConnectionManager {
 
 enum Transport {
     Tcp(TcpOptions),
-    Udp,
     #[cfg(unix)]
     Unix,
     #[cfg(feature = "tls")]
@@ -178,20 +176,14 @@ impl Transport {
         if let Some(proto) = parts.next() {
             return match proto {
                 "tcp" => Ok(Transport::Tcp(TcpOptions::from_url(url))),
-                "udp" => Ok(Transport::Udp),
                 #[cfg(unix)]
                 "unix" => Ok(Transport::Unix),
                 #[cfg(feature = "tls")]
                 "tls" => Ok(Transport::Tls(TlsOptions::from_url(url)?)),
                 _ => Err(MemcacheError::BadURL(
-                    "memcache URL's scheme should be 'memcache+tcp' or 'memcache+udp' or 'memcache+unix' or 'memcache+tls'".into(),
+                    "memcache URL's scheme should be 'memcache+tcp' or 'memcache+unix' or 'memcache+tls'".into(),
                 )),
             };
-        }
-
-        let is_udp = url.query_pairs().any(|(ref k, ref v)| k == "udp" && v == "true");
-        if is_udp {
-            return Ok(Transport::Udp);
         }
 
         #[cfg(unix)]
@@ -214,10 +206,8 @@ fn tcp_stream(url: &Url, opts: &TcpOptions) -> Result<TcpStream, MemcacheError> 
 impl Connection {
     pub(crate) fn connect(url: &Url) -> Result<Self, MemcacheError> {
         let transport = Transport::from_url(url)?;
-        let is_ascii = url.query_pairs().any(|(ref k, ref v)| k == "protocol" && v == "ascii");
         let stream: Stream = match transport {
             Transport::Tcp(options) => Stream::Tcp(tcp_stream(url, &options)?),
-            Transport::Udp => Stream::Udp(UdpStream::new(url)?),
             #[cfg(unix)]
             Transport::Unix => Stream::Unix(UnixStream::connect(url.path())?),
             #[cfg(feature = "tls")]
@@ -248,13 +238,7 @@ impl Connection {
             }
         };
 
-        let protocol = if is_ascii {
-            Protocol::Ascii(AsciiProtocol::new(stream))
-        } else {
-            Protocol::Binary(BinaryProtocol { stream })
-        };
-
-        Ok(Connection(protocol))
+        Ok(Connection(AsciiProtocol::new(stream)))
     }
 }
 
