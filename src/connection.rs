@@ -3,7 +3,6 @@ use std::net::TcpStream;
 use std::ops::{Deref, DerefMut};
 #[cfg(unix)]
 use std::os::unix::net::UnixStream;
-use std::sync::Arc;
 use url::Url;
 
 use crate::error::MemcacheError;
@@ -16,21 +15,18 @@ use openssl::ssl::{SslConnector, SslFiletype, SslMethod, SslVerifyMode};
 use r2d2::ManageConnection;
 
 /// A connection to the memcached server
-pub struct Connection {
-    pub protocol: Protocol,
-    pub url: Arc<String>,
-}
+pub struct Connection(Protocol);
 
 impl DerefMut for Connection {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.protocol
+        &mut self.0
     }
 }
 
 impl Deref for Connection {
     type Target = Protocol;
     fn deref(&self) -> &Self::Target {
-        &self.protocol
+        &self.0
     }
 }
 
@@ -84,7 +80,6 @@ impl ManageConnection for ConnectionManager {
     }
 
     fn has_broken(&self, _conn: &mut Self::Connection) -> bool {
-        // TODO: fix this
         false
     }
 }
@@ -259,10 +254,7 @@ impl Connection {
             Protocol::Binary(BinaryProtocol { stream })
         };
 
-        Ok(Connection {
-            url: Arc::new(url.to_string()),
-            protocol,
-        })
+        Ok(Connection(protocol))
     }
 }
 
