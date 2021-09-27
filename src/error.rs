@@ -34,9 +34,6 @@ impl From<ClientError> for MemcacheError {
 /// Server-side errors
 #[derive(Debug)]
 pub enum ServerError {
-    /// When using binary protocol, the server returned magic byte other
-    /// than 0x81 in the response packet.
-    BadMagic(u8),
     /// The client did not expect this response from the server.
     BadResponse(Cow<'static, str>),
     /// The server returned an error prefixed with SERVER_ERROR in response to a command.
@@ -46,7 +43,6 @@ pub enum ServerError {
 impl fmt::Display for ServerError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ServerError::BadMagic(e) => write!(f, "Expected 0x81 as magic in response header, but found: {:x}", e),
             ServerError::BadResponse(s) => write!(f, "Unexpected: {} in response", s),
             ServerError::Error(s) => write!(f, "{}", s),
         }
@@ -66,8 +62,6 @@ pub enum CommandError {
     InvalidArguments,
     /// The server requires authentication.
     AuthenticationRequired,
-    /// When using binary protocol, the server returned an unknown response status.
-    Unknown(u16),
     /// The client sent an invalid command to the server.
     InvalidCommand,
 }
@@ -110,21 +104,7 @@ impl fmt::Display for CommandError {
             CommandError::ValueTooLarge => write!(f, "Value was too large."),
             CommandError::InvalidArguments => write!(f, "Invalid arguments provided."),
             CommandError::AuthenticationRequired => write!(f, "Authentication required."),
-            CommandError::Unknown(code) => write!(f, "Unknown error occurred with code: {}.", code),
             CommandError::InvalidCommand => write!(f, "Invalid command sent to the server."),
-        }
-    }
-}
-
-impl From<u16> for CommandError {
-    fn from(status: u16) -> CommandError {
-        match status {
-            0x1 => CommandError::KeyNotFound,
-            0x2 => CommandError::KeyExists,
-            0x3 => CommandError::ValueTooLarge,
-            0x4 => CommandError::InvalidArguments,
-            0x20 => CommandError::AuthenticationRequired,
-            e => CommandError::Unknown(e),
         }
     }
 }
@@ -219,7 +199,7 @@ impl From<str::ParseBoolError> for MemcacheError {
     }
 }
 
-/// Stands for errors raised from rust-memcache
+/// Stands for errors raised from vmemcached
 #[derive(Debug)]
 pub enum MemcacheError {
     /// Error raised when the provided memcache URL doesn't have a host name
@@ -232,6 +212,7 @@ pub enum MemcacheError {
     ServerError(ServerError),
     /// Command specific Errors
     CommandError(CommandError),
+    /// OpenSLL handshake error
     #[cfg(feature = "tls")]
     OpensslError(openssl::ssl::HandshakeError<std::net::TcpStream>),
     /// Parse errors

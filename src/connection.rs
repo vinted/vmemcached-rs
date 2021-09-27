@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::net::TcpStream;
 use std::ops::{Deref, DerefMut};
 #[cfg(unix)]
@@ -14,6 +13,7 @@ use openssl::ssl::{SslConnector, SslFiletype, SslMethod, SslVerifyMode};
 use r2d2::ManageConnection;
 
 /// A connection to the memcached server
+#[allow(missing_debug_implementations)]
 pub struct Connection(AsciiProtocol<Stream>);
 
 impl DerefMut for Connection {
@@ -40,22 +40,6 @@ impl ConnectionManager {
     pub fn new(target: impl AsRef<str>) -> Result<Self, MemcacheError> {
         let url = Url::parse(target.as_ref())?;
         Ok(Self { url })
-    }
-
-    /// Set ASCII protocol
-    pub fn set_ascii_protocol(mut self) -> Self {
-        let mut query_pairs: HashMap<String, String> = self.url.query_pairs().into_owned().collect();
-        let _ = query_pairs.insert("protocol".into(), "ascii".into());
-
-        {
-            let mut query_pairs_mut = self.url.query_pairs_mut();
-            query_pairs_mut.clear();
-            for (k, v) in query_pairs {
-                query_pairs_mut.append_pair(&k, &v);
-            }
-            query_pairs_mut.finish();
-        }
-        self
     }
 }
 
@@ -244,8 +228,6 @@ impl Connection {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[cfg(unix)]
     #[test]
     fn test_transport_url() {
@@ -255,18 +237,5 @@ mod tests {
             Transport::Unix => (),
             _ => assert!(false, "transport is not unix"),
         }
-    }
-
-    #[test]
-    fn test_set_ascii_protocol() {
-        let url = "memcache:///tmp/memcached.sock";
-        let cm = ConnectionManager::new(url).unwrap().set_ascii_protocol();
-
-        assert_eq!(cm.url.as_str(), &format!("{}?protocol=ascii", url));
-
-        let url = "memcache:///tmp/memcached.sock?query=1&protocol=binary";
-        let cm = ConnectionManager::new(url).unwrap().set_ascii_protocol();
-
-        assert!(cm.url.as_str().contains("protocol=ascii"));
     }
 }

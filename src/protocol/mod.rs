@@ -7,7 +7,7 @@ use crate::client::Stats;
 use crate::error::MemcacheError;
 pub(crate) use crate::protocol::ascii::AsciiProtocol;
 
-pub trait ProtocolTrait {
+pub(crate) trait ProtocolTrait {
     fn auth(&mut self, username: &str, password: &str) -> Result<(), MemcacheError>;
     fn version(&mut self) -> Result<String, MemcacheError>;
     fn flush(&mut self) -> Result<(), MemcacheError>;

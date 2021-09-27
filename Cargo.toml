@@ -1,8 +1,8 @@
 [package]
-name = "vinted-memcached"
+name = "vmemcached"
 version = "0.1.0"
 authors = ["Vinted hello@vinted.com"]
-repository = "https://github.com/vinted/vinted-memcached"
+repository = "https://github.com/vinted/vmemcached-rs"
 readme = "README.md"
 license = "MIT"
 description = "Memcached client for Rust"

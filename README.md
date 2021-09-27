@@ -1,13 +1,8 @@
-# rust-memcache
+# vmemcached
 
-[![Build Status](https://travis-ci.org/aisk/rust-memcache.svg?branch=master)](https://travis-ci.org/aisk/rust-memcache)
-[![Codecov Status](https://codecov.io/gh/aisk/rust-memcache/branch/master/graph/badge.svg)](https://codecov.io/gh/aisk/rust-memcache)
-[![Crates.io](https://img.shields.io/crates/v/memcache.svg)](https://crates.io/crates/memcache)
-[![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
-[![Docs](https://docs.rs/memcache/badge.svg)](https://docs.rs/memcache/)
-[![Gitter chat](https://badges.gitter.im/rust-memcache/Lobby.png)](https://gitter.im/rust-memcache/Lobby)
+[![Build Status](https://travis-ci.org/vinted/vmemcached.svg?branch=master)](https://travis-ci.org/vinted/vmemcached)
 
-rust-memcache is a [memcached](https://memcached.org/) client written in pure rust.
+vmemcached is a [memcached](https://memcached.org/) client written in pure rust.
 
 ![logo](https://cloudflare-ipfs.com/ipfs/QmY2otmZFbrLfCQZ2JG8bsEsMGegHrh8WgupcyTcyoShiS)
 
@@ -17,80 +12,29 @@ The crate is called `memcache` and you can depend on it via cargo:
 
 ```ini
 [dependencies]
-memcache = "*"
+vmemcached = "0.1.0"
 ```
-
-## Features
-
-- [x] All memcached supported protocols
-  - [x] Binary protocol
-  - [x] ASCII protocol
-- [x] All memcached supported connections
-  - [x] TCP connection
-  - [x] UNIX Domain socket connection
-  - [x] TLS connection
-- [ ] Encodings
-  - [x] Typed interface
-  - [ ] Automatically compress
-  - [ ] Automatically serialize to JSON / msgpack etc
-- [x] Memcached cluster support with custom key hash algorithm
-- [x] Authority
-  - [x] Binary protocol (plain SASL authority plain)
-  - [x] ASCII protocol
-
 ## Basic usage
 
 ```rust
-// create connection with to memcached server node:
-let pool = memcache::Pool::builder()
+let pool = vmemcached::Pool::builder()
   .connection_timeout(std::time::Duration::from_secs(1))
-  .build(memcache::ConnectionManager::new("memcache://localhost:11211").unwrap())
-  .unwrap();
-
-let client = memcache::Client::with_pool(pool);
-
-// flush the database
-client.flush().unwrap();
-
-// set a string value
-client.set("foo", "bar", 0).unwrap();
-
-// retrieve from memcached:
-let value: Option<String> = client.get("foo").unwrap();
+  .build(vmemcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
+  .expect("Memcache is available at localhost port 11211");
+let client = vmemcached::Client::with_pool(pool);
+client.set("sample", "bar", 10).unwrap();
+let value: Option<String> = client.get("sample").unwrap();
 assert_eq!(value, Some(String::from("bar")));
-assert_eq!(value.unwrap(), "bar");
-
-// delete value:
-client.delete("foo").unwrap();
 ```
 
-## Custom key hash function
+## Development
 
-If you have multiple memcached server, you can create the `memcache::Client` struct with a vector of urls of them. Which server will be used to store and retrive is based on what the key is.
+To start:
 
-This library have a basic rule to do this with rust's builtin hash function, and also you can use your custom function to do this, for something like you can using a have more data on one server which have more memory quota, or cluster keys with their prefix, or using consitent hash for large memcached cluster.
-
-```rust
-let mut client = memcache::connect(vec!["memcache://127.0.0.1:12345", "memcache:///tmp/memcached.sock"]).unwrap();
-client.hash_function = |key: &str| -> u64 {
-    // your custom hashing function here
-    return 1;
-};
+```shell
+make test
 ```
 
-## Contributing
-
-Before sending pull request, please ensure:
-
-- `cargo fmt` is being run;
-- Commit message is using [gitmoji](https://gitmoji.carloscuesta.me/) with first character is lower cased, for example: `:sparkles: rust-memcache can print money now`.
-
-## Contributors
-
-<a href="https://github.com/aisk/rust-memcache/graphs/contributors">
-  <img src="https://contributors-img.firebaseapp.com/image?repo=aisk/rust-memcache" />
-</a>
-
-## License
+# License
 
 MIT

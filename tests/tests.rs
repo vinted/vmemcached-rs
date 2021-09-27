@@ -1,5 +1,5 @@
 extern crate rand;
-extern crate vinted_memcached;
+extern crate vmemcached;
 
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};

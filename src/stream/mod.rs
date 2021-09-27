@@ -6,10 +6,15 @@ use std::os::unix::net::UnixStream;
 #[cfg(feature = "tls")]
 use openssl::ssl::SslStream;
 
+/// Stream wrapper
+#[allow(missing_debug_implementations)]
 pub enum Stream {
+    /// TCP stream
     Tcp(TcpStream),
     #[cfg(unix)]
+    /// Unix socket stream
     Unix(UnixStream),
+    /// TLS stream
     #[cfg(feature = "tls")]
     Tls(SslStream<TcpStream>),
 }

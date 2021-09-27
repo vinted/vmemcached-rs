@@ -1,5 +1,5 @@
 use std::time::Duration;
-use vinted_memcached::{Client, ConnectionManager, MemcacheError};
+use vmemcached::{Client, ConnectionManager, MemcacheError};
 
 // Connect to memcache
 pub fn connect(target: &str) -> Result<Client, MemcacheError> {

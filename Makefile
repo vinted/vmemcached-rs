@@ -7,3 +7,8 @@ start-test-env:
 .PHONY: stop-test-env
 stop-test-env:
 	docker-compose $(ARGS) down --remove-orphans --volumes
+
+.PHONY: test
+test: start-test-env
+	cargo test
+

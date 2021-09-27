@@ -1,4 +1,4 @@
-extern crate vinted_memcached;
+extern crate vmemcached;
 
 use std::{thread, time};
 

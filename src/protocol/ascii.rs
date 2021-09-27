@@ -12,10 +12,9 @@ use crate::stream::Stream;
 use std::borrow::Cow;
 
 #[derive(Default)]
-pub struct Options {
-    pub noreply: bool,
-    pub exptime: u32,
-    pub flags: u32,
+pub(crate) struct Options {
+    pub(crate) noreply: bool,
+    pub(crate) exptime: u32,
 }
 
 #[derive(PartialEq)]
@@ -37,6 +36,7 @@ impl fmt::Display for StoreCommand {
     }
 }
 
+#[derive(Debug)]
 struct CappedLineReader<C> {
     inner: C,
     filled: usize,
@@ -117,6 +117,7 @@ impl<C: Read> CappedLineReader<C> {
     }
 }
 
+#[derive(Debug)]
 pub struct AsciiProtocol<C: Read + Write + Sized> {
     reader: CappedLineReader<C>,
 }
@@ -127,7 +128,7 @@ impl ProtocolTrait for AsciiProtocol<Stream> {
     }
 
     fn version(&mut self) -> Result<String, MemcacheError> {
-        self.reader.get_mut().write(b"version\r\n")?;
+        let _ = self.reader.get_mut().write(b"version\r\n")?;
         self.reader.get_mut().flush()?;
         self.reader.read_line(|response| {
             let response = MemcacheError::try_from(response)?;
@@ -241,8 +242,9 @@ impl ProtocolTrait for AsciiProtocol<Stream> {
     }
 
     fn stats(&mut self) -> Result<Stats, MemcacheError> {
-        self.reader.get_mut().write(b"stats\r\n")?;
-        self.reader.get_mut().flush()?;
+        let reader = self.reader.get_mut();
+        let _ = reader.write(b"stats\r\n")?;
+        reader.flush()?;
 
         enum Loop {
             Break,
@@ -265,7 +267,7 @@ impl ProtocolTrait for AsciiProtocol<Stream> {
                 }
                 let key = stat[1];
                 let value = s.trim_start_matches(format!("STAT {}", key).as_str());
-                stats.insert(key.into(), value.into());
+                let _ = stats.insert(key.into(), value.into());
 
                 Ok(Loop::Continue)
             })?;
@@ -337,6 +339,7 @@ impl AsciiProtocol<Stream> {
         })
     }
 
+    // TODO: fix this with nom parser #589a806
     fn parse_get_response<T: DeserializeOwned>(&mut self) -> Result<Option<(String, T)>, MemcacheError> {
         let result = self.reader.read_line(|buf| {
             let buf = MemcacheError::try_from(buf)?;
@@ -369,8 +372,8 @@ impl AsciiProtocol<Stream> {
                     return Err(ServerError::BadResponse(Cow::Owned(String::from_utf8(value)?)))?;
                 }
                 // remove the trailing \r\n
-                value.pop();
-                value.pop();
+                let _ = value.pop();
+                let _ = value.pop();
                 value.shrink_to_fit();
                 let value = codec::decode(value)?;
                 Ok(Some((key.to_string(), value)))
