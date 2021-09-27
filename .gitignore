@@ -1,0 +1,7 @@
+Cargo.lock
+
+*.swp
+*.dSYM
+target/
+
+tests/memcached-1.5.20/
