@@ -18,26 +18,36 @@ pub trait ProtocolTrait {
         T: FromMemcacheValueExt,
         I: IntoIterator<Item = K>,
         K: AsRef<[u8]>;
-    fn set<V: ToMemcacheValue<Stream>>(&mut self, key: &str, value: V, expiration: u32) -> Result<(), MemcacheError>;
-    fn cas<V: ToMemcacheValue<Stream>>(
+    fn set<K: AsRef<[u8]>, T: ToMemcacheValue<Stream>>(
         &mut self,
-        key: &str,
-        value: V,
+        key: K,
+        value: T,
+        expiration: u32,
+    ) -> Result<(), MemcacheError>;
+    fn cas<K: AsRef<[u8]>, T: ToMemcacheValue<Stream>>(
+        &mut self,
+        key: K,
+        value: T,
         expiration: u32,
         cas: u64,
     ) -> Result<bool, MemcacheError>;
-    fn add<V: ToMemcacheValue<Stream>>(&mut self, key: &str, value: V, expiration: u32) -> Result<(), MemcacheError>;
-    fn replace<V: ToMemcacheValue<Stream>>(
+    fn add<K: AsRef<[u8]>, T: ToMemcacheValue<Stream>>(
         &mut self,
-        key: &str,
-        value: V,
+        key: K,
+        value: T,
         expiration: u32,
     ) -> Result<(), MemcacheError>;
-    fn append<V: ToMemcacheValue<Stream>>(&mut self, key: &str, value: V) -> Result<(), MemcacheError>;
-    fn prepend<V: ToMemcacheValue<Stream>>(&mut self, key: &str, value: V) -> Result<(), MemcacheError>;
-    fn delete(&mut self, key: &str) -> Result<bool, MemcacheError>;
-    fn increment(&mut self, key: &str, amount: u64) -> Result<u64, MemcacheError>;
-    fn decrement(&mut self, key: &str, amount: u64) -> Result<u64, MemcacheError>;
-    fn touch(&mut self, key: &str, expiration: u32) -> Result<bool, MemcacheError>;
+    fn replace<K: AsRef<[u8]>, T: ToMemcacheValue<Stream>>(
+        &mut self,
+        key: K,
+        value: T,
+        expiration: u32,
+    ) -> Result<(), MemcacheError>;
+    fn append<K: AsRef<[u8]>, T: ToMemcacheValue<Stream>>(&mut self, key: K, value: T) -> Result<(), MemcacheError>;
+    fn prepend<K: AsRef<[u8]>, T: ToMemcacheValue<Stream>>(&mut self, key: K, value: T) -> Result<(), MemcacheError>;
+    fn delete<K: AsRef<[u8]>>(&mut self, key: K) -> Result<bool, MemcacheError>;
+    fn increment<K: AsRef<[u8]>>(&mut self, key: K, amount: u64) -> Result<u64, MemcacheError>;
+    fn decrement<K: AsRef<[u8]>>(&mut self, key: K, amount: u64) -> Result<u64, MemcacheError>;
+    fn touch<K: AsRef<[u8]>>(&mut self, key: K, expiration: u32) -> Result<bool, MemcacheError>;
     fn stats(&mut self) -> Result<Stats, MemcacheError>;
 }

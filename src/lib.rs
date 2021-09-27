@@ -1,11 +1,7 @@
 //! Vinted Rust memcache
 
-extern crate byteorder;
 #[cfg(feature = "tls")]
 extern crate openssl;
-extern crate r2d2;
-extern crate rand;
-extern crate url;
 
 mod client;
 mod connection;

@@ -207,10 +207,10 @@ impl ProtocolTrait for AsciiProtocol<Stream> {
         Err(ServerError::BadResponse(Cow::Borrowed("Expected end of gets response")))?
     }
 
-    fn cas<V: ToMemcacheValue<Stream>>(
+    fn cas<K: AsRef<[u8]>, T: ToMemcacheValue<Stream>>(
         &mut self,
-        key: &str,
-        value: V,
+        key: K,
+        value: T,
         expiration: u32,
         cas: u64,
     ) -> Result<bool, MemcacheError> {
@@ -228,15 +228,25 @@ impl ProtocolTrait for AsciiProtocol<Stream> {
         }
     }
 
-    fn set<V: ToMemcacheValue<Stream>>(&mut self, key: &str, value: V, expiration: u32) -> Result<(), MemcacheError> {
+    fn set<K: AsRef<[u8]>, T: ToMemcacheValue<Stream>>(
+        &mut self,
+        key: K,
+        value: T,
+        expiration: u32,
+    ) -> Result<(), MemcacheError> {
         let options = Options {
             exptime: expiration,
             ..Default::default()
         };
-        self.store(StoreCommand::Set, key, value, &options).map(|_| ())
+        self.store(StoreCommand::Set, key.as_ref(), value, &options).map(|_| ())
     }
 
-    fn add<V: ToMemcacheValue<Stream>>(&mut self, key: &str, value: V, expiration: u32) -> Result<(), MemcacheError> {
+    fn add<K: AsRef<[u8]>, T: ToMemcacheValue<Stream>>(
+        &mut self,
+        key: K,
+        value: T,
+        expiration: u32,
+    ) -> Result<(), MemcacheError> {
         let options = Options {
             exptime: expiration,
             ..Default::default()
@@ -244,10 +254,10 @@ impl ProtocolTrait for AsciiProtocol<Stream> {
         self.store(StoreCommand::Add, key, value, &options).map(|_| ())
     }
 
-    fn replace<V: ToMemcacheValue<Stream>>(
+    fn replace<K: AsRef<[u8]>, T: ToMemcacheValue<Stream>>(
         &mut self,
-        key: &str,
-        value: V,
+        key: K,
+        value: T,
         expiration: u32,
     ) -> Result<(), MemcacheError> {
         let options = Options {
@@ -257,19 +267,22 @@ impl ProtocolTrait for AsciiProtocol<Stream> {
         self.store(StoreCommand::Replace, key, value, &options).map(|_| ())
     }
 
-    fn append<V: ToMemcacheValue<Stream>>(&mut self, key: &str, value: V) -> Result<(), MemcacheError> {
+    fn append<K: AsRef<[u8]>, T: ToMemcacheValue<Stream>>(&mut self, key: K, value: T) -> Result<(), MemcacheError> {
         self.store(StoreCommand::Append, key, value, &Default::default())
             .map(|_| ())
     }
 
-    fn prepend<V: ToMemcacheValue<Stream>>(&mut self, key: &str, value: V) -> Result<(), MemcacheError> {
+    fn prepend<K: AsRef<[u8]>, T: ToMemcacheValue<Stream>>(&mut self, key: K, value: T) -> Result<(), MemcacheError> {
         self.store(StoreCommand::Prepend, key, value, &Default::default())
             .map(|_| ())
     }
 
-    fn delete(&mut self, key: &str) -> Result<bool, MemcacheError> {
-        write!(self.reader.get_mut(), "delete {}\r\n", key)?;
-        self.reader.get_mut().flush()?;
+    fn delete<K: AsRef<[u8]>>(&mut self, key: K) -> Result<bool, MemcacheError> {
+        let reader = self.reader.get_mut();
+        let _ = reader.write(b"delete ");
+        let _ = reader.write(key.as_ref())?;
+        let _ = reader.write(b"\r\n");
+        reader.flush()?;
         self.reader
             .read_line(|response| match MemcacheError::try_from(response) {
                 Ok(s) => {
@@ -284,19 +297,28 @@ impl ProtocolTrait for AsciiProtocol<Stream> {
             })
     }
 
-    fn increment(&mut self, key: &str, amount: u64) -> Result<u64, MemcacheError> {
-        write!(self.reader.get_mut(), "incr {} {}\r\n", key, amount)?;
+    fn increment<K: AsRef<[u8]>>(&mut self, key: K, amount: u64) -> Result<u64, MemcacheError> {
+        let reader = self.reader.get_mut();
+        let _ = reader.write(b"incr ")?;
+        let _ = reader.write(key.as_ref())?;
+        write!(reader, " {}\r\n", amount)?;
         self.parse_u64_response()
     }
 
-    fn decrement(&mut self, key: &str, amount: u64) -> Result<u64, MemcacheError> {
-        write!(self.reader.get_mut(), "decr {} {}\r\n", key, amount)?;
+    fn decrement<K: AsRef<[u8]>>(&mut self, key: K, amount: u64) -> Result<u64, MemcacheError> {
+        let reader = self.reader.get_mut();
+        let _ = reader.write(b"decr ")?;
+        let _ = reader.write(key.as_ref())?;
+        write!(reader, " {}\r\n", amount)?;
         self.parse_u64_response()
     }
 
-    fn touch(&mut self, key: &str, expiration: u32) -> Result<bool, MemcacheError> {
-        write!(self.reader.get_mut(), "touch {} {}\r\n", key, expiration)?;
-        self.reader.get_mut().flush()?;
+    fn touch<K: AsRef<[u8]>>(&mut self, key: K, expiration: u32) -> Result<bool, MemcacheError> {
+        let reader = self.reader.get_mut();
+        let _ = reader.write(b"touch ")?;
+        let _ = reader.write(key.as_ref())?;
+        write!(reader, " {}\r\n", expiration)?;
+        reader.flush()?;
         self.reader
             .read_line(|response| match MemcacheError::try_from(response) {
                 Ok(s) => {
@@ -355,11 +377,11 @@ impl AsciiProtocol<Stream> {
         }
     }
 
-    fn store<V: ToMemcacheValue<Stream>>(
+    fn store<K: AsRef<[u8]>, T: ToMemcacheValue<Stream>>(
         &mut self,
         command: StoreCommand,
-        key: &str,
-        value: V,
+        key: K,
+        value: T,
         options: &Options,
     ) -> Result<bool, MemcacheError> {
         if command == StoreCommand::Cas {
@@ -370,12 +392,13 @@ impl AsciiProtocol<Stream> {
             }
         }
         let noreply = if options.noreply { " noreply" } else { "" };
+        let reader = self.reader.get_mut();
+        let _ = reader.write(format!("{} ", command).as_ref())?;
+        let _ = reader.write(key.as_ref())?;
         if options.cas.is_some() {
             write!(
-                self.reader.get_mut(),
-                "{command} {key} {flags} {exptime} {vlen} {cas}{noreply}\r\n",
-                command = command,
-                key = key,
+                reader,
+                " {flags} {exptime} {vlen} {cas}{noreply}\r\n",
                 flags = value.get_flags(),
                 exptime = options.exptime,
                 vlen = value.get_length(),
@@ -385,9 +408,7 @@ impl AsciiProtocol<Stream> {
         } else {
             write!(
                 self.reader.get_mut(),
-                "{command} {key} {flags} {exptime} {vlen}{noreply}\r\n",
-                command = command,
-                key = key,
+                " {flags} {exptime} {vlen}{noreply}\r\n",
                 flags = value.get_flags(),
                 exptime = options.exptime,
                 vlen = value.get_length(),
