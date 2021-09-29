@@ -15,8 +15,8 @@ pub type Stats = HashMap<String, String>;
 #[derive(Clone, Debug)]
 pub struct Client(Pool<ConnectionManager>);
 
-pub(crate) fn check_key_len(key: &str) -> Result<(), MemcacheError> {
-    if key.len() > 250 {
+pub(crate) fn check_key_len<K: AsRef<[u8]>>(key: K) -> Result<(), MemcacheError> {
+    if key.as_ref().len() > 250 {
         Err(ClientError::KeyTooLong)?
     }
     Ok(())
@@ -100,8 +100,8 @@ impl Client {
     /// let client = vmemcached::Client::with_pool(pool);
     /// let _: Option<String> = client.get("foo").unwrap();
     /// ```
-    pub fn get<T: DeserializeOwned>(&self, key: &str) -> Result<Option<T>, MemcacheError> {
-        check_key_len(key)?;
+    pub fn get<K: AsRef<[u8]>, T: DeserializeOwned>(&self, key: K) -> Result<Option<T>, MemcacheError> {
+        check_key_len(&key)?;
         self.get_connection()?.get(key)
     }
 
@@ -118,8 +118,8 @@ impl Client {
     /// client.set("foo", "bar", 10).unwrap();
     /// # client.flush().unwrap();
     /// ```
-    pub fn set<T: Serialize>(&self, key: &str, value: T, expiration: u32) -> Result<(), MemcacheError> {
-        check_key_len(key)?;
+    pub fn set<K: AsRef<[u8]>, T: Serialize>(&self, key: K, value: T, expiration: u32) -> Result<(), MemcacheError> {
+        check_key_len(&key)?;
         self.get_connection()?.set(key, value, expiration)
     }
 
@@ -138,8 +138,8 @@ impl Client {
     /// client.add(key, "bar", 100000000).unwrap();
     /// # client.flush().unwrap();
     /// ```
-    pub fn add<T: Serialize>(&self, key: &str, value: T, expiration: u32) -> Result<(), MemcacheError> {
-        check_key_len(key)?;
+    pub fn add<K: AsRef<[u8]>, T: Serialize>(&self, key: K, value: T, expiration: u32) -> Result<(), MemcacheError> {
+        check_key_len(&key)?;
         self.get_connection()?.add(key, value, expiration)
     }
 
@@ -158,8 +158,13 @@ impl Client {
     /// client.replace(key, "baz", 100000000).unwrap();
     /// # client.flush().unwrap();
     /// ```
-    pub fn replace<T: Serialize>(&self, key: &str, value: T, expiration: u32) -> Result<(), MemcacheError> {
-        check_key_len(key)?;
+    pub fn replace<K: AsRef<[u8]>, T: Serialize>(
+        &self,
+        key: K,
+        value: T,
+        expiration: u32,
+    ) -> Result<(), MemcacheError> {
+        check_key_len(&key)?;
         self.get_connection()?.replace(key, value, expiration)
     }
 
@@ -176,8 +181,8 @@ impl Client {
     /// client.delete("foo").unwrap();
     /// # client.flush().unwrap();
     /// ```
-    pub fn delete(&self, key: &str) -> Result<bool, MemcacheError> {
-        check_key_len(key)?;
+    pub fn delete<K: AsRef<[u8]>>(&self, key: K) -> Result<bool, MemcacheError> {
+        check_key_len(&key)?;
         self.get_connection()?.delete(key)
     }
 
@@ -196,8 +201,8 @@ impl Client {
     /// assert_eq!(client.touch("foo", 11211).unwrap(), true);
     /// # client.flush().unwrap();
     /// ```
-    pub fn touch(&self, key: &str, expiration: u32) -> Result<bool, MemcacheError> {
-        check_key_len(key)?;
+    pub fn touch<K: AsRef<[u8]>>(&self, key: K, expiration: u32) -> Result<bool, MemcacheError> {
+        check_key_len(&key)?;
         self.get_connection()?.touch(key, expiration)
     }
 
