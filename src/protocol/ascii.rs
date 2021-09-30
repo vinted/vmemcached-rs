@@ -3,6 +3,7 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::fmt;
 use std::io::{Read, Write};
+use std::time::Duration;
 
 use super::ProtocolTrait;
 use crate::client::Stats;
@@ -14,7 +15,7 @@ use std::borrow::Cow;
 #[derive(Default)]
 pub(crate) struct Options {
     pub(crate) noreply: bool,
-    pub(crate) exptime: u32,
+    pub(crate) exptime: Duration,
 }
 
 #[derive(PartialEq)]
@@ -122,7 +123,7 @@ pub struct AsciiProtocol<C: Read + Write + Sized> {
 
 impl ProtocolTrait for AsciiProtocol<Stream> {
     fn auth(&mut self, username: &str, password: &str) -> Result<(), MemcacheError> {
-        return self.set("auth", format!("{} {}", username, password), 0);
+        return self.set("auth", format!("{} {}", username, password), Duration::from_secs(0));
     }
 
     fn version(&mut self) -> Result<String, MemcacheError> {
@@ -170,7 +171,12 @@ impl ProtocolTrait for AsciiProtocol<Stream> {
         }
     }
 
-    fn set<K: AsRef<[u8]>, T: Serialize>(&mut self, key: K, value: T, expiration: u32) -> Result<(), MemcacheError> {
+    fn set<K: AsRef<[u8]>, T: Serialize>(
+        &mut self,
+        key: K,
+        value: T,
+        expiration: Duration,
+    ) -> Result<(), MemcacheError> {
         let options = Options {
             exptime: expiration,
             ..Default::default()
@@ -178,7 +184,12 @@ impl ProtocolTrait for AsciiProtocol<Stream> {
         self.store(StoreCommand::Set, key.as_ref(), value, &options).map(|_| ())
     }
 
-    fn add<K: AsRef<[u8]>, T: Serialize>(&mut self, key: K, value: T, expiration: u32) -> Result<(), MemcacheError> {
+    fn add<K: AsRef<[u8]>, T: Serialize>(
+        &mut self,
+        key: K,
+        value: T,
+        expiration: Duration,
+    ) -> Result<(), MemcacheError> {
         let options = Options {
             exptime: expiration,
             ..Default::default()
@@ -190,7 +201,7 @@ impl ProtocolTrait for AsciiProtocol<Stream> {
         &mut self,
         key: K,
         value: T,
-        expiration: u32,
+        expiration: Duration,
     ) -> Result<(), MemcacheError> {
         let options = Options {
             exptime: expiration,
@@ -219,11 +230,11 @@ impl ProtocolTrait for AsciiProtocol<Stream> {
             })
     }
 
-    fn touch<K: AsRef<[u8]>>(&mut self, key: K, expiration: u32) -> Result<bool, MemcacheError> {
+    fn touch<K: AsRef<[u8]>>(&mut self, key: K, expiration: Duration) -> Result<bool, MemcacheError> {
         let reader = self.reader.get_mut();
         let _ = reader.write(b"touch ")?;
         let _ = reader.write(key.as_ref())?;
-        write!(reader, " {}\r\n", expiration)?;
+        write!(reader, " {}\r\n", expiration.as_secs())?;
         reader.flush()?;
         self.reader
             .read_line(|response| match MemcacheError::try_from(response) {
@@ -301,7 +312,7 @@ impl AsciiProtocol<Stream> {
             reader,
             " {flags} {exptime} {vlen}{noreply}\r\n",
             flags = 0,
-            exptime = options.exptime,
+            exptime = options.exptime.as_secs(),
             vlen = encoded.len(),
             noreply = noreply
         )?;
