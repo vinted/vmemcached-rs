@@ -15,7 +15,7 @@ fn gen_random_key() -> String {
         .map(|()| thread_rng().sample(Alphanumeric))
         .take(10)
         .collect::<Vec<u8>>();
-    return String::from_utf8(bs).unwrap();
+    String::from_utf8(bs).unwrap()
 }
 
 #[test]

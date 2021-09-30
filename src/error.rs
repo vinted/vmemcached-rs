@@ -1,4 +1,3 @@
-use r2d2;
 use std::borrow::Cow;
 use std::error;
 use std::fmt;
@@ -69,15 +68,15 @@ pub enum CommandError {
 impl MemcacheError {
     pub(crate) fn try_from(s: &str) -> Result<&str, MemcacheError> {
         if s == "ERROR\r\n" {
-            Err(CommandError::InvalidCommand)?
+            Err(CommandError::InvalidCommand.into())
         } else if s.starts_with("CLIENT_ERROR") {
-            Err(ClientError::from(String::from(s)))?
+            Err(ClientError::from(String::from(s)).into())
         } else if s.starts_with("SERVER_ERROR") {
-            Err(ServerError::from(String::from(s)))?
+            Err(ServerError::from(String::from(s)).into())
         } else if s == "NOT_FOUND\r\n" {
-            Err(CommandError::KeyNotFound)?
+            Err(CommandError::KeyNotFound.into())
         } else if s == "EXISTS\r\n" {
-            Err(CommandError::KeyExists)?
+            Err(CommandError::KeyExists.into())
         } else {
             Ok(s)
         }

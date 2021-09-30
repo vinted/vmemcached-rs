@@ -146,7 +146,7 @@ impl TcpOptions {
 
 impl Transport {
     fn from_url(url: &Url) -> Result<Self, MemcacheError> {
-        let mut parts = url.scheme().splitn(2, "+");
+        let mut parts = url.scheme().splitn(2, '+');
         match parts.next() {
             Some(part) if part == "memcache" => (),
             _ => {

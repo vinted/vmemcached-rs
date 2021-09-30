@@ -24,7 +24,7 @@ enum StoreCommand {
     Replace,
 }
 
-const END: &'static str = "END\r\n";
+const END: &str = "END\r\n";
 
 impl fmt::Display for StoreCommand {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -45,10 +45,8 @@ struct CappedLineReader<C> {
 
 fn get_line(buf: &[u8]) -> Option<usize> {
     for (i, r) in buf.iter().enumerate() {
-        if *r == b'\r' {
-            if buf.get(i + 1) == Some(&b'\n') {
-                return Some(i + 2);
-            }
+        if *r == b'\r' && buf.get(i + 1) == Some(&b'\n') {
+            return Some(i + 2);
         }
     }
     None
@@ -72,8 +70,8 @@ impl<C: Read> CappedLineReader<C> {
         let (to_fill, rest) = buf.split_at_mut(min);
         to_fill.copy_from_slice(&self.buf[..min]);
         self.consume(min);
-        if rest.len() != 0 {
-            self.inner.read_exact(&mut rest[..])?;
+        if !rest.is_empty() {
+            self.inner.read_exact(&mut *rest)?;
         }
         Ok(())
     }
@@ -93,13 +91,13 @@ impl<C: Read> CappedLineReader<C> {
         }
         loop {
             let (filled, buf) = self.buf.split_at_mut(self.filled);
-            if buf.len() == 0 {
-                return Err(ClientError::Error(Cow::Borrowed("Ascii protocol response too long")))?;
+            if buf.is_empty() {
+                return Err(ClientError::Error(Cow::Borrowed("Ascii protocol response too long")).into());
             }
             let filled = filled.len();
-            let read = self.inner.read(&mut buf[..])?;
+            let read = self.inner.read(&mut *buf)?;
             if read == 0 {
-                return Err(ClientError::Error(Cow::Borrowed("Ascii protocol no line found")))?;
+                return Err(ClientError::Error(Cow::Borrowed("Ascii protocol no line found")).into());
             }
             self.filled += read;
             if let Some(n) = get_line(&buf[..read]) {
@@ -133,7 +131,7 @@ impl ProtocolTrait for AsciiProtocol<Stream> {
         self.reader.read_line(|response| {
             let response = MemcacheError::try_from(response)?;
             if !response.starts_with("VERSION") {
-                Err(ServerError::BadResponse(Cow::Owned(response.into())))?
+                return Err(ServerError::BadResponse(Cow::Owned(response.into())).into());
             }
             let version = response.trim_start_matches("VERSION ").trim_end_matches("\r\n");
             Ok(version.to_string())
@@ -161,13 +159,11 @@ impl ProtocolTrait for AsciiProtocol<Stream> {
 
         if let Some((k, v)) = self.parse_get_response()? {
             if k.as_bytes() != key.as_ref() {
-                Err(ServerError::BadResponse(Cow::Borrowed(
-                    "key doesn't match in the response",
-                )))?
+                return Err(ServerError::BadResponse(Cow::Borrowed("key doesn't match in the response")).into());
             } else if self.parse_get_response::<T>()?.is_none() {
                 Ok(Some(v))
             } else {
-                Err(ServerError::BadResponse(Cow::Borrowed("Expected end of get response")))?
+                return Err(ServerError::BadResponse(Cow::Borrowed("Expected end of get response")).into());
             }
         } else {
             Ok(None)
@@ -261,9 +257,9 @@ impl ProtocolTrait for AsciiProtocol<Stream> {
                 }
                 let s = MemcacheError::try_from(response)?;
                 if !s.starts_with("STAT") {
-                    return Err(ServerError::BadResponse(Cow::Owned(s.into())))?;
+                    return Err(ServerError::BadResponse(Cow::Owned(s.into())).into());
                 }
-                let stat: Vec<_> = s.trim_end_matches("\r\n").split(" ").collect();
+                let stat: Vec<_> = s.trim_end_matches("\r\n").split(' ').collect();
                 if stat.len() < 3 {
                     return Err(ServerError::BadResponse(Cow::Owned(s.into())).into());
                 }
@@ -323,9 +319,9 @@ impl AsciiProtocol<Stream> {
             match response {
                 "STORED\r\n" => Ok(true),
                 "NOT_STORED\r\n" => Ok(false),
-                "EXISTS\r\n" => Err(CommandError::KeyExists)?,
-                "NOT_FOUND\r\n" => Err(CommandError::KeyNotFound)?,
-                response => Err(ServerError::BadResponse(Cow::Owned(response.into())))?,
+                "EXISTS\r\n" => Err(CommandError::KeyExists.into()),
+                "NOT_FOUND\r\n" => Err(CommandError::KeyNotFound.into()),
+                response => return Err(ServerError::BadResponse(Cow::Owned(response.into())).into()),
             }
         })
     }
@@ -337,7 +333,7 @@ impl AsciiProtocol<Stream> {
             if response == "OK\r\n" {
                 Ok(())
             } else {
-                Err(ServerError::BadResponse(Cow::Owned(response.into())))?
+                return Err(ServerError::BadResponse(Cow::Owned(response.into())).into());
             }
         })
     }
@@ -350,9 +346,9 @@ impl AsciiProtocol<Stream> {
                 return Ok(None);
             }
             if !buf.starts_with("VALUE") {
-                return Err(ServerError::BadResponse(Cow::Owned(buf.into())))?;
+                return Err(ServerError::BadResponse(Cow::Owned(buf.into())).into());
             }
-            let mut header = buf.trim_end_matches("\r\n").split(" ");
+            let mut header = buf.trim_end_matches("\r\n").split(' ');
             let mut next_or_err = || {
                 header
                     .next()
@@ -363,7 +359,7 @@ impl AsciiProtocol<Stream> {
             let flags: u32 = next_or_err()?.parse()?;
             let length: usize = next_or_err()?.parse()?;
             if header.next().is_some() {
-                return Err(ServerError::BadResponse(Cow::Owned(buf.into())))?;
+                return Err(ServerError::BadResponse(Cow::Owned(buf.into())).into());
             }
             Ok(Some((key.to_string(), flags, length)))
         })?;
@@ -372,14 +368,14 @@ impl AsciiProtocol<Stream> {
                 let mut value = vec![0u8; length + 2];
                 self.reader.read_exact(value.as_mut_slice())?;
                 if &value[length..] != b"\r\n" {
-                    return Err(ServerError::BadResponse(Cow::Owned(String::from_utf8(value)?)))?;
+                    return Err(ServerError::BadResponse(Cow::Owned(String::from_utf8(value)?)).into());
                 }
                 // remove the trailing \r\n
                 let _ = value.pop();
                 let _ = value.pop();
                 value.shrink_to_fit();
                 let value = codec::decode(value)?;
-                Ok(Some((key.to_string(), value)))
+                Ok(Some((key, value)))
             }
             None => Ok(None),
         }

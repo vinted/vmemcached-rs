@@ -17,9 +17,10 @@ pub struct Client(Pool<ConnectionManager>);
 
 pub(crate) fn check_key_len<K: AsRef<[u8]>>(key: K) -> Result<(), MemcacheError> {
     if key.as_ref().len() > 250 {
-        Err(ClientError::KeyTooLong)?
+        Err(ClientError::KeyTooLong.into())
+    } else {
+        Ok(())
     }
-    Ok(())
 }
 
 impl Client {
