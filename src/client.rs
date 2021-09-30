@@ -3,6 +3,7 @@ use r2d2::PooledConnection;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::collections::HashMap;
+use std::time::Duration;
 
 use crate::connection::ConnectionManager;
 use crate::error::{ClientError, MemcacheError};
@@ -17,9 +18,10 @@ pub struct Client(Pool<ConnectionManager>);
 
 pub(crate) fn check_key_len<K: AsRef<[u8]>>(key: K) -> Result<(), MemcacheError> {
     if key.as_ref().len() > 250 {
-        Err(ClientError::KeyTooLong)?
+        Err(ClientError::KeyTooLong.into())
+    } else {
+        Ok(())
     }
-    Ok(())
 }
 
 impl Client {
@@ -44,10 +46,12 @@ impl Client {
     ///
     /// ```rust
     /// let pool = vmemcached::Pool::builder()
-    /// .connection_timeout(std::time::Duration::from_secs(1))
-    /// .build(vmemcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
-    /// .unwrap();
+    ///     .connection_timeout(std::time::Duration::from_secs(1))
+    ///     .build(vmemcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
+    ///     .unwrap();
+    ///
     /// let client = vmemcached::Client::with_pool(pool);
+    ///
     /// client.version().unwrap();
     /// ```
     pub fn version(&self) -> Result<String, MemcacheError> {
@@ -60,10 +64,12 @@ impl Client {
     ///
     /// ```rust
     /// let pool = vmemcached::Pool::builder()
-    /// .connection_timeout(std::time::Duration::from_secs(1))
-    /// .build(vmemcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
-    /// .unwrap();
+    ///     .connection_timeout(std::time::Duration::from_secs(1))
+    ///     .build(vmemcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
+    ///     .unwrap();
+    ///
     /// let client = vmemcached::Client::with_pool(pool);
+    ///
     /// client.flush().unwrap();
     /// ```
     #[cfg(not(feature = "mcrouter"))]
@@ -77,10 +83,12 @@ impl Client {
     ///
     /// ```rust
     /// let pool = vmemcached::Pool::builder()
-    /// .connection_timeout(std::time::Duration::from_secs(1))
-    /// .build(vmemcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
-    /// .unwrap();
+    ///     .connection_timeout(std::time::Duration::from_secs(1))
+    ///     .build(vmemcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
+    ///     .unwrap();
+    ///
     /// let client = vmemcached::Client::with_pool(pool);
+    ///
     /// client.flush_with_delay(10).unwrap();
     /// ```
     #[cfg(not(feature = "mcrouter"))]
@@ -94,10 +102,12 @@ impl Client {
     ///
     /// ```rust
     /// let pool = vmemcached::Pool::builder()
-    /// .connection_timeout(std::time::Duration::from_secs(1))
-    /// .build(vmemcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
-    /// .unwrap();
+    ///     .connection_timeout(std::time::Duration::from_secs(1))
+    ///     .build(vmemcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
+    ///     .unwrap();
+    ///
     /// let client = vmemcached::Client::with_pool(pool);
+    ///
     /// let _: Option<String> = client.get("foo").unwrap();
     /// ```
     pub fn get<K: AsRef<[u8]>, T: DeserializeOwned>(&self, key: K) -> Result<Option<T>, MemcacheError> {
@@ -111,14 +121,21 @@ impl Client {
     ///
     /// ```rust
     /// let pool = vmemcached::Pool::builder()
-    /// .connection_timeout(std::time::Duration::from_secs(1))
-    /// .build(vmemcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
-    /// .unwrap();
+    ///     .connection_timeout(std::time::Duration::from_secs(1))
+    ///     .build(vmemcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
+    ///     .unwrap();
+    ///
     /// let client = vmemcached::Client::with_pool(pool);
-    /// client.set("foo", "bar", 10).unwrap();
+    ///
+    /// client.set("foo", "bar", std::time::Duration::from_secs(10)).unwrap();
     /// # client.flush().unwrap();
     /// ```
-    pub fn set<K: AsRef<[u8]>, T: Serialize>(&self, key: K, value: T, expiration: u32) -> Result<(), MemcacheError> {
+    pub fn set<K: AsRef<[u8]>, T: Serialize>(
+        &self,
+        key: K,
+        value: T,
+        expiration: Duration,
+    ) -> Result<(), MemcacheError> {
         check_key_len(&key)?;
         self.get_connection()?.set(key, value, expiration)
     }
@@ -129,16 +146,23 @@ impl Client {
     ///
     /// ```rust
     /// let pool = vmemcached::Pool::builder()
-    /// .connection_timeout(std::time::Duration::from_secs(1))
-    /// .build(vmemcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
-    /// .unwrap();
+    ///     .connection_timeout(std::time::Duration::from_secs(1))
+    ///     .build(vmemcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
+    ///     .unwrap();
+    ///
     /// let client = vmemcached::Client::with_pool(pool);
     /// let key = "add_test";
+    ///
     /// client.delete(key).unwrap();
-    /// client.add(key, "bar", 100000000).unwrap();
+    /// client.add(key, "bar", std::time::Duration::from_secs(100000000)).unwrap();
     /// # client.flush().unwrap();
     /// ```
-    pub fn add<K: AsRef<[u8]>, T: Serialize>(&self, key: K, value: T, expiration: u32) -> Result<(), MemcacheError> {
+    pub fn add<K: AsRef<[u8]>, T: Serialize>(
+        &self,
+        key: K,
+        value: T,
+        expiration: Duration,
+    ) -> Result<(), MemcacheError> {
         check_key_len(&key)?;
         self.get_connection()?.add(key, value, expiration)
     }
@@ -149,20 +173,22 @@ impl Client {
     ///
     /// ```rust
     /// let pool = vmemcached::Pool::builder()
-    /// .connection_timeout(std::time::Duration::from_secs(1))
-    /// .build(vmemcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
-    /// .unwrap();
+    ///     .connection_timeout(std::time::Duration::from_secs(1))
+    ///     .build(vmemcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
+    ///     .unwrap();
+    ///
     /// let client = vmemcached::Client::with_pool(pool);
     /// let key = "replace_test";
-    /// client.set(key, "bar", 0).unwrap();
-    /// client.replace(key, "baz", 100000000).unwrap();
+    ///
+    /// client.set(key, "bar", std::time::Duration::from_secs(0)).unwrap();
+    /// client.replace(key, "baz", std::time::Duration::from_secs(100000000)).unwrap();
     /// # client.flush().unwrap();
     /// ```
     pub fn replace<K: AsRef<[u8]>, T: Serialize>(
         &self,
         key: K,
         value: T,
-        expiration: u32,
+        expiration: Duration,
     ) -> Result<(), MemcacheError> {
         check_key_len(&key)?;
         self.get_connection()?.replace(key, value, expiration)
@@ -174,10 +200,12 @@ impl Client {
     ///
     /// ```rust
     /// let pool = vmemcached::Pool::builder()
-    /// .connection_timeout(std::time::Duration::from_secs(1))
-    /// .build(vmemcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
-    /// .unwrap();
+    ///     .connection_timeout(std::time::Duration::from_secs(1))
+    ///     .build(vmemcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
+    ///     .unwrap();
+    ///
     /// let client = vmemcached::Client::with_pool(pool);
+    ///
     /// client.delete("foo").unwrap();
     /// # client.flush().unwrap();
     /// ```
@@ -192,16 +220,18 @@ impl Client {
     ///
     /// ```rust
     /// let pool = vmemcached::Pool::builder()
-    /// .connection_timeout(std::time::Duration::from_secs(1))
-    /// .build(vmemcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
-    /// .unwrap();
+    ///     .connection_timeout(std::time::Duration::from_secs(1))
+    ///     .build(vmemcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
+    ///     .unwrap();
+    ///
     /// let client = vmemcached::Client::with_pool(pool);
-    /// assert_eq!(client.touch("not_exists_key", 11211).unwrap(), false);
-    /// client.set("foo", "bar", 123).unwrap();
-    /// assert_eq!(client.touch("foo", 11211).unwrap(), true);
+    /// assert_eq!(client.touch("not_exists_key", std::time::Duration::from_secs(11211)).unwrap(), false);
+    ///
+    /// client.set("foo", "bar", std::time::Duration::from_secs(123)).unwrap();
+    /// assert_eq!(client.touch("foo", std::time::Duration::from_secs(11211)).unwrap(), true);
     /// # client.flush().unwrap();
     /// ```
-    pub fn touch<K: AsRef<[u8]>>(&self, key: K, expiration: u32) -> Result<bool, MemcacheError> {
+    pub fn touch<K: AsRef<[u8]>>(&self, key: K, expiration: Duration) -> Result<bool, MemcacheError> {
         check_key_len(&key)?;
         self.get_connection()?.touch(key, expiration)
     }
@@ -211,9 +241,10 @@ impl Client {
     /// Example:
     /// ```rust
     /// let pool = vmemcached::Pool::builder()
-    /// .connection_timeout(std::time::Duration::from_secs(1))
-    /// .build(vmemcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
-    /// .unwrap();
+    ///     .connection_timeout(std::time::Duration::from_secs(1))
+    ///     .build(vmemcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
+    ///     .unwrap();
+    ///
     /// let client = vmemcached::Client::with_pool(pool);
     /// let stats = client.stats().unwrap();
     /// ```
@@ -239,7 +270,7 @@ mod tests {
     #[test]
     fn delete() {
         let client = connect("memcache://localhost:11211").unwrap();
-        client.set("an_exists_key", "value", 0).unwrap();
+        client.set("an_exists_key", "value", Duration::from_secs(0)).unwrap();
         assert_eq!(client.delete("an_exists_key").unwrap(), true);
         assert_eq!(client.delete("a_not_exists_key").unwrap(), false);
     }

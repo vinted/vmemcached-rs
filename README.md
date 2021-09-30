@@ -27,9 +27,9 @@ vmemcached = "0.1.0"
 
 ```rust
 let pool = vmemcached::Pool::builder()
-  .connection_timeout(std::time::Duration::from_secs(1))
-  .build(vmemcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
-  .expect("Memcache is available at localhost port 11211");
+    .connection_timeout(std::time::Duration::from_secs(1))
+    .build(vmemcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
+    .expect("Memcache is available at localhost port 11211");
 
 let client = vmemcached::Client::with_pool(pool);
 client.set("sample", "bar", 10).unwrap();

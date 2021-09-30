@@ -1,5 +1,6 @@
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use std::time::Duration;
 
 mod ascii;
 
@@ -15,11 +16,25 @@ pub(crate) trait ProtocolTrait {
     #[cfg(not(feature = "mcrouter"))]
     fn flush_with_delay(&mut self, delay: u32) -> Result<(), MemcacheError>;
     fn get<K: AsRef<[u8]>, T: DeserializeOwned>(&mut self, key: K) -> Result<Option<T>, MemcacheError>;
-    fn set<K: AsRef<[u8]>, T: Serialize>(&mut self, key: K, value: T, expiration: u32) -> Result<(), MemcacheError>;
-    fn add<K: AsRef<[u8]>, T: Serialize>(&mut self, key: K, value: T, expiration: u32) -> Result<(), MemcacheError>;
-    fn replace<K: AsRef<[u8]>, T: Serialize>(&mut self, key: K, value: T, expiration: u32)
-        -> Result<(), MemcacheError>;
+    fn set<K: AsRef<[u8]>, T: Serialize>(
+        &mut self,
+        key: K,
+        value: T,
+        expiration: Duration,
+    ) -> Result<(), MemcacheError>;
+    fn add<K: AsRef<[u8]>, T: Serialize>(
+        &mut self,
+        key: K,
+        value: T,
+        expiration: Duration,
+    ) -> Result<(), MemcacheError>;
+    fn replace<K: AsRef<[u8]>, T: Serialize>(
+        &mut self,
+        key: K,
+        value: T,
+        expiration: Duration,
+    ) -> Result<(), MemcacheError>;
     fn delete<K: AsRef<[u8]>>(&mut self, key: K) -> Result<bool, MemcacheError>;
-    fn touch<K: AsRef<[u8]>>(&mut self, key: K, expiration: u32) -> Result<bool, MemcacheError>;
+    fn touch<K: AsRef<[u8]>>(&mut self, key: K, expiration: Duration) -> Result<bool, MemcacheError>;
     fn stats(&mut self) -> Result<Stats, MemcacheError>;
 }
