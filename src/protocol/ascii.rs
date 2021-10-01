@@ -179,6 +179,7 @@ impl ProtocolTrait for AsciiProtocol<Stream> {
     ) -> Result<(), MemcacheError> {
         let options = Options {
             exptime: expiration,
+            noreply: true,
             ..Default::default()
         };
         self.store(StoreCommand::Set, key.as_ref(), value, &options).map(|_| ())

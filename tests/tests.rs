@@ -1,6 +1,3 @@
-extern crate rand;
-extern crate vmemcached;
-
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use std::iter;
@@ -20,53 +17,54 @@ fn gen_random_key() -> String {
 
 #[test]
 fn tcp_test() {
-    let client = helpers::connect("memcache://localhost:11211").unwrap();
+    let mcrouter = helpers::connect("memcache://localhost:11311").unwrap();
+    let memcached = helpers::connect("memcache://localhost:11211").unwrap();
     let expiration = time::Duration::from_secs(0);
 
-    client.version().unwrap();
+    mcrouter.version().unwrap();
 
-    client.set("foo", "bar", expiration).unwrap();
-    client.flush().unwrap();
-    let value: Option<String> = client.get("foo").unwrap();
+    mcrouter.set("foo", "bar", expiration).unwrap();
+    memcached.flush().unwrap();
+    let value: Option<String> = mcrouter.get("foo").unwrap();
     assert_eq!(value, None);
 
-    client.set("foo", "bar", expiration).unwrap();
-    client.flush_with_delay(3).unwrap();
-    let value: Option<String> = client.get("foo").unwrap();
+    mcrouter.set("foo", "bar", expiration).unwrap();
+    memcached.flush_with_delay(3).unwrap();
+    let value: Option<String> = mcrouter.get("foo").unwrap();
     assert_eq!(value, Some(String::from("bar")));
     thread::sleep(time::Duration::from_secs(4));
-    let value: Option<String> = client.get("foo").unwrap();
+    let value: Option<String> = mcrouter.get("foo").unwrap();
     assert_eq!(value, None);
 
-    client.set("foo", "bar", expiration).unwrap();
-    let value = client.add("foo", "baz", expiration);
+    mcrouter.set("foo", "bar", expiration).unwrap();
+    let value = mcrouter.add("foo", "baz", expiration);
     assert!(value.is_ok());
 
-    client.delete("foo").unwrap();
-    let value: Option<String> = client.get("foo").unwrap();
+    mcrouter.delete("foo").unwrap();
+    let value: Option<String> = mcrouter.get("foo").unwrap();
     assert_eq!(value, None);
 
-    client.add("foo", "bar", expiration).unwrap();
-    let value: Option<String> = client.get("foo").unwrap();
+    mcrouter.add("foo", "bar", expiration).unwrap();
+    let value: Option<String> = mcrouter.get("foo").unwrap();
     assert_eq!(value, Some(String::from("bar")));
 
-    client.replace("foo", "baz", expiration).unwrap();
-    let value: Option<String> = client.get("foo").unwrap();
+    mcrouter.replace("foo", "baz", expiration).unwrap();
+    let value: Option<String> = mcrouter.get("foo").unwrap();
     assert_eq!(value, Some(String::from("baz")));
 
-    assert_eq!(client.touch("foooo", time::Duration::from_secs(123)).unwrap(), false);
-    client.set("fooo", 0, expiration).unwrap();
-    assert_eq!(client.touch("fooo", time::Duration::from_secs(12345)).unwrap(), true);
+    assert_eq!(mcrouter.touch("foooo", time::Duration::from_secs(123)).unwrap(), false);
+    mcrouter.set("fooo", 0, expiration).unwrap();
+    assert_eq!(mcrouter.touch("fooo", time::Duration::from_secs(12345)).unwrap(), true);
 
     let mut keys: Vec<String> = Vec::new();
     for _ in 0..1000 {
         let key = gen_random_key();
         keys.push(key.clone());
-        client.set(key.as_str(), "xxx", expiration).unwrap();
+        mcrouter.set(key.as_str(), "xxx", expiration).unwrap();
     }
 
     for key in keys {
-        let value: String = client.get(key.as_str()).unwrap().unwrap();
+        let value: String = mcrouter.get(key.as_str()).unwrap().unwrap();
 
         assert_eq!(value, "xxx");
     }
@@ -77,26 +75,26 @@ fn tcp_test() {
         handles.push(Some(thread::spawn(move || {
             let key = format!("key{}", i);
             let value = format!("value{}", i);
-            let client = helpers::connect("memcache://localhost:11211").unwrap();
+            let mcrouter = helpers::connect("memcache://localhost:11311").unwrap();
             for j in 0..50 {
                 let value = format!("{}{}", value, j);
-                client.set(key.as_str(), &value, expiration).unwrap();
-                let result: Option<String> = client.get(key.as_str()).unwrap();
+                mcrouter.set(key.as_str(), &value, expiration).unwrap();
+                let result: Option<String> = mcrouter.get(key.as_str()).unwrap();
                 assert_eq!(result.as_ref(), Some(&value));
 
-                let result = client.add(key.as_str(), &value, expiration);
+                let result = mcrouter.add(key.as_str(), &value, expiration);
                 assert!(result.is_ok());
 
-                client.delete(key.as_str()).unwrap();
-                let result: Option<String> = client.get(key.as_str()).unwrap();
+                mcrouter.delete(key.as_str()).unwrap();
+                let result: Option<String> = mcrouter.get(key.as_str()).unwrap();
                 assert_eq!(result, None);
 
-                client.add(key.as_str(), &value, expiration).unwrap();
-                let result: Option<String> = client.get(key.as_str()).unwrap();
+                mcrouter.add(key.as_str(), &value, expiration).unwrap();
+                let result: Option<String> = mcrouter.get(key.as_str()).unwrap();
                 assert_eq!(result.as_ref(), Some(&value));
 
-                client.replace(key.as_str(), &value, expiration).unwrap();
-                let result: Option<String> = client.get(key.as_str()).unwrap();
+                mcrouter.replace(key.as_str(), &value, expiration).unwrap();
+                let result: Option<String> = mcrouter.get(key.as_str()).unwrap();
                 assert_eq!(result.as_ref(), Some(&value));
             }
         })));

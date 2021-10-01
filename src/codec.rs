@@ -63,7 +63,7 @@ mod tests {
     }
 
     #[test]
-    fn test_simd_json_serde_annotations() {
+    fn test_simd_json() {
         let a = A {
             field: "a_struct".into(),
         };

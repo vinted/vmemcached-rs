@@ -269,9 +269,9 @@ mod tests {
 
     #[test]
     fn delete() {
-        let client = connect("memcache://localhost:11211").unwrap();
-        client.set("an_exists_key", "value", Duration::from_secs(0)).unwrap();
-        assert_eq!(client.delete("an_exists_key").unwrap(), true);
-        assert_eq!(client.delete("a_not_exists_key").unwrap(), false);
+        let mcrouter = connect("memcache://localhost:11311").unwrap();
+        mcrouter.set("an_exists_key", "value", Duration::from_secs(0)).unwrap();
+        assert_eq!(mcrouter.delete("an_exists_key").unwrap(), true);
+        assert_eq!(mcrouter.delete("a_not_exists_key").unwrap(), false);
     }
 }
