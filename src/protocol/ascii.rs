@@ -127,8 +127,9 @@ impl ProtocolTrait for AsciiProtocol<Stream> {
     }
 
     fn version(&mut self) -> Result<String, MemcacheError> {
-        let _ = self.reader.get_mut().write(b"version\r\n")?;
-        self.reader.get_mut().flush()?;
+        let reader = self.reader.get_mut();
+        let _ = reader.write(b"version\r\n")?;
+        let _ = reader.flush()?;
         self.reader.read_line(|response| {
             let response = MemcacheError::try_from(response)?;
             if !response.starts_with("VERSION") {
@@ -141,14 +142,17 @@ impl ProtocolTrait for AsciiProtocol<Stream> {
 
     #[cfg(not(feature = "mcrouter"))]
     fn flush(&mut self) -> Result<(), MemcacheError> {
-        write!(self.reader.get_mut(), "flush_all\r\n")?;
+        let reader = self.reader.get_mut();
+        write!(reader, "flush_all\r\n")?;
+        let _ = reader.flush()?;
         self.parse_ok_response()
     }
 
     #[cfg(not(feature = "mcrouter"))]
     fn flush_with_delay(&mut self, delay: u32) -> Result<(), MemcacheError> {
-        write!(self.reader.get_mut(), "flush_all {}\r\n", delay)?;
-        self.reader.get_mut().flush()?;
+        let reader = self.reader.get_mut();
+        write!(reader, "flush_all {}\r\n", delay)?;
+        let _ = reader.flush()?;
         self.parse_ok_response()
     }
 
@@ -157,6 +161,7 @@ impl ProtocolTrait for AsciiProtocol<Stream> {
         let _ = reader.write(b"get ");
         let _ = reader.write(key.as_ref());
         let _ = reader.write(b"\r\n");
+        let _ = reader.flush()?;
 
         if let Some((k, v)) = self.parse_get_response()? {
             if k.as_bytes() != key.as_ref() {
@@ -215,7 +220,7 @@ impl ProtocolTrait for AsciiProtocol<Stream> {
         let _ = reader.write(b"delete ");
         let _ = reader.write(key.as_ref())?;
         let _ = reader.write(b"\r\n");
-        reader.flush()?;
+        let _ = reader.flush()?;
         self.reader
             .read_line(|response| match MemcacheError::try_from(response) {
                 Ok(s) => {
@@ -235,7 +240,7 @@ impl ProtocolTrait for AsciiProtocol<Stream> {
         let _ = reader.write(b"touch ")?;
         let _ = reader.write(key.as_ref())?;
         write!(reader, " {}\r\n", expiration.as_secs())?;
-        reader.flush()?;
+        let _ = reader.flush()?;
         self.reader
             .read_line(|response| match MemcacheError::try_from(response) {
                 Ok(s) => {
@@ -253,7 +258,7 @@ impl ProtocolTrait for AsciiProtocol<Stream> {
     fn stats(&mut self) -> Result<Stats, MemcacheError> {
         let reader = self.reader.get_mut();
         let _ = reader.write(b"stats\r\n")?;
-        reader.flush()?;
+        let _ = reader.flush()?;
 
         enum Loop {
             Break,
