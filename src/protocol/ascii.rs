@@ -98,7 +98,10 @@ impl<C: Read> CappedLineReader<C> {
             let filled = filled.len();
             let read = self.inner.read(&mut *buf)?;
             if read == 0 {
-                return Err(ClientError::Error(Cow::Borrowed("Ascii protocol no line found")).into());
+                let message: &'static str = Box::leak(
+                    format!("Ascii protocol no line found. Stack:{:?}", backtrace::Backtrace::new()).into_boxed_str(),
+                );
+                return Err(ClientError::Error(Cow::Borrowed(message)).into());
             }
             self.filled += read;
             if let Some(n) = get_line(&buf[..read]) {
