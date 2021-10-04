@@ -23,7 +23,16 @@ r2d2 = { version = "0.8", default-features = false }
 serde = { version = "1", default-features = false }
 brotli = { version = "3.3", default-features = false, features = ["std"], optional = true }
 simd-json = { version = "0.4", default-features = true, features = ["serde_impl", "allow-non-simd"] }
+btoi = { version = "0.4.2", default-features = false }
+nom = { version = "7", default-features = false, features = ["std"] }
+bytes = { version = "1", default-features = false, features =["std"] }
+bb8 = { version = "0.7", default-features = false }
+tokio = { version = "1.12", default-features = false, features = ["net", "io-util"] }
+pin-project = "1"
+async-trait = { version = "0.1", default-features = false }
+futures-util = "0.3.17"
 
 [dev-dependencies]
 lazy_static = "1.4"
 serde = { version = "1", default-features = false, features = ["derive"] }
+tokio = { version = "1.12", default-features = false, features = ["macros"] }

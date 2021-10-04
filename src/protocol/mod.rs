@@ -6,7 +6,6 @@ mod ascii;
 
 use crate::client::Stats;
 use crate::error::MemcacheError;
-pub(crate) use crate::protocol::ascii::AsciiProtocol;
 
 pub(crate) trait ProtocolTrait {
     fn auth(&mut self, username: &str, password: &str) -> Result<(), MemcacheError>;
