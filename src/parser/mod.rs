@@ -1,12 +1,7 @@
 use std::fmt;
 
-use crate::MemcacheError;
-
 mod ascii;
-pub use ascii::{
-    parse_ascii_metadump_response, parse_ascii_response, parse_ascii_stats_response,
-    parse_ascii_status,
-};
+pub use ascii::*;
 
 /// A value from memcached.
 #[derive(Clone, Debug, PartialEq)]
@@ -40,6 +35,12 @@ pub enum Status {
     NotFound,
     /// An error occurred for the given operation.
     Error(ErrorKind),
+}
+
+impl Status {
+    pub fn is_server_error(&self) -> bool {
+        matches!(self, Status::Error(ErrorKind::Server(_)))
+    }
 }
 
 /// Errors related to a memcached operation.

@@ -18,10 +18,12 @@ async fn test_ascii() {
 
     assert_eq!(got, Status::Stored);
 
-    // client.flush_with_delay(1).unwrap();
-    // thread::sleep(time::Duration::from_secs(1));
-    // client.flush().unwrap();
-    //
+    let got: Option<String> = client.get("ascii_foo").await.unwrap();
+    assert_eq!(got.unwrap(), "bar");
+
+    let got: Option<String> = client.get("ascii_foo_none").await.unwrap();
+    assert!(got.is_none());
+
     // client.set("ascii_foo", "bar", time::Duration::from_secs(1)).unwrap();
     // let value: Option<String> = client.get("ascii_foo").unwrap();
     // assert_eq!(value, Some("bar".into()));
@@ -36,4 +38,21 @@ async fn test_ascii() {
     // assert_eq!(value, None);
     //
     // client.stats().unwrap();
+}
+
+#[tokio::test]
+async fn test_set_too_large_value() {
+    // Testing mcrouter
+    let client = helpers::connect("memcache://localhost:11211?protocol=ascii")
+        .await
+        .unwrap();
+
+    let value = vec![0u8; 1024 * 256];
+
+    let got = client
+        .set("large_value", value.clone(), time::Duration::from_secs(1))
+        .await
+        .unwrap();
+
+    assert!(got.is_server_error())
 }

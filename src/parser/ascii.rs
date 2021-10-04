@@ -15,18 +15,22 @@ use std::str::Utf8Error;
 
 use super::{ErrorKind, KeyMetadata, MetadumpResponse, Response, StatsResponse, Status, Value};
 
-pub fn parse_ascii_status(buf: &[u8]) -> IResult<&[u8], Status> {
+pub fn _parse_ascii_status(buf: &[u8]) -> IResult<&[u8], Response> {
     terminated(
         alt((
-            value(Status::Stored, tag(b"STORED")),
-            value(Status::NotStored, tag(b"NOT_STORED")),
-            value(Status::Deleted, tag(b"DELETED")),
-            value(Status::Touched, tag(b"TOUCHED")),
-            value(Status::Exists, tag(b"EXISTS")),
-            value(Status::NotFound, tag(b"NOT_FOUND")),
+            value(Response::Status(Status::Stored), tag(b"STORED")),
+            value(Response::Status(Status::NotStored), tag(b"NOT_STORED")),
+            value(Response::Status(Status::Deleted), tag(b"DELETED")),
+            value(Response::Status(Status::Touched), tag(b"TOUCHED")),
+            value(Response::Status(Status::Exists), tag(b"EXISTS")),
+            value(Response::Status(Status::NotFound), tag(b"NOT_FOUND")),
         )),
         crlf,
     )(buf)
+}
+
+pub fn parse_ascii_status(buf: &[u8]) -> IResult<&[u8], Response> {
+    alt((_parse_ascii_status, parse_ascii_error))(buf)
 }
 
 fn parse_ascii_error(buf: &[u8]) -> IResult<&[u8], Response> {
@@ -121,11 +125,8 @@ fn parse_ascii_data(buf: &[u8]) -> IResult<&[u8], Response> {
 
 pub fn parse_ascii_response(buf: &[u8]) -> Result<Option<(usize, Response)>, ErrorKind> {
     let bufn = buf.len();
-
-    let ascii_status = map(parse_ascii_status, |status| Response::Status(status));
-
     let result = alt((
-        ascii_status,
+        _parse_ascii_status,
         parse_ascii_error,
         parse_ascii_incrdecr,
         parse_ascii_data,

@@ -103,25 +103,32 @@ impl Client {
     // pub fn flush_with_delay(&self, delay: u32) -> Result<(), MemcacheError> {
     //     self.get_connection()?.flush_with_delay(delay)
     // }
-    //
-    // /// Get a key from memcached server.
-    // ///
-    // /// Example:
-    // ///
-    // /// ```rust
-    // /// let pool = vmemcached::Pool::builder()
-    // ///     .connection_timeout(std::time::Duration::from_secs(1))
-    // ///     .build(vmemcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
-    // ///     .unwrap();
-    // ///
-    // /// let client = vmemcached::Client::with_pool(pool);
-    // ///
-    // /// let _: Option<String> = client.get("foo").unwrap();
-    // /// ```
-    // pub fn get<K: AsRef<[u8]>, T: DeserializeOwned>(&self, key: K) -> Result<Option<T>, MemcacheError> {
-    //     check_key_len(&key)?;
-    //     self.get_connection()?.get(key)
-    // }
+
+    /// Get a key from memcached server.
+    ///
+    /// Example:
+    ///
+    /// ```rust
+    /// let pool = vmemcached::Pool::builder()
+    ///     .connection_timeout(std::time::Duration::from_secs(1))
+    ///     .build(vmemcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
+    ///     .unwrap();
+    ///
+    /// let client = vmemcached::Client::with_pool(pool);
+    ///
+    /// let _: Option<String> = client.get("foo").unwrap();
+    /// ```
+    pub async fn get<K: AsRef<[u8]>, T: DeserializeOwned>(
+        &self,
+        key: K,
+    ) -> Result<Option<T>, MemcacheError> {
+        check_key_len(&key)?;
+
+        // <command name> <key> <flags> <exptime> <bytes> [noreply]\r\n
+        self.get_connection()
+            .and_then(|conn| driver::retrieve(conn, driver::Command::Get, key))
+            .await
+    }
 
     /// Set a key with associate value into memcached server with expiration seconds.
     ///
@@ -153,7 +160,7 @@ impl Client {
         // <command name> <key> <flags> <exptime> <bytes> [noreply]\r\n
         self.get_connection()
             .and_then(|conn| {
-                driver::store_command(
+                driver::store(
                     conn,
                     driver::Command::Set,
                     key,
