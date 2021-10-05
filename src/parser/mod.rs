@@ -1,7 +1,7 @@
 use std::fmt;
 
 mod ascii;
-pub use ascii::*;
+pub(crate) use ascii::{parse_ascii_response, parse_ascii_status, parse_version};
 
 /// A value from memcached.
 #[derive(Clone, Debug, PartialEq)]
@@ -69,47 +69,6 @@ impl Response {
     }
 }
 
-/// Metadump response.
-#[derive(Clone, Debug, PartialEq)]
-pub enum MetadumpResponse {
-    /// The server is busy running another LRU crawler operation.
-    Busy(String),
-    /// An invalid class ID was specified for the metadump.
-    BadClass(String),
-    /// A single key entry within the overall metadump operation.
-    Entry(KeyMetadata),
-    /// End of the metadump.
-    End,
-}
-
-/// Stats response.
-#[derive(Clone, Debug, PartialEq)]
-pub enum StatsResponse {
-    /// A stats entry, represented by a key and value.
-    Entry(String, String),
-    /// End of stats output.
-    End,
-}
-
-/// Metadata for a given key in a metadump operation.
-#[derive(Clone, Debug, PartialEq)]
-pub struct KeyMetadata {
-    /// The key.
-    pub key: Vec<u8>,
-    /// Expiration time of this key, as a Unix timestamp.
-    pub expiration: i64,
-    /// Last time this key was accessed, in seconds.
-    pub last_accessed: u64,
-    /// CAS identifier.
-    pub cas: u64,
-    /// Whether or not this key has ever been fetched.
-    pub fetched: bool,
-    /// Slab class ID.
-    pub class_id: u32,
-    /// Size, in bytes.
-    pub size: u32,
-}
-
 impl fmt::Display for Status {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -134,18 +93,6 @@ impl fmt::Display for ErrorKind {
             },
             Self::Client(s) => write!(f, "client: {}", s),
             Self::Server(s) => write!(f, "server: {}", s),
-        }
-    }
-}
-
-impl From<MetadumpResponse> for Response {
-    fn from(resp: MetadumpResponse) -> Self {
-        match resp {
-            MetadumpResponse::BadClass(s) => {
-                Response::Error(ErrorKind::Generic(format!("BADCLASS {}", s)))
-            }
-            MetadumpResponse::Busy(s) => Response::Error(ErrorKind::Generic(format!("BUSY {}", s))),
-            _ => unreachable!("Metadump Entry/End states should never be used as a Status!"),
         }
     }
 }

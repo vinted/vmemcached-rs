@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::{thread, time};
+use std::time;
 
 use vmemcached::{ErrorKind, MemcacheError, Status};
 
@@ -8,7 +8,7 @@ mod helpers;
 #[tokio::test]
 async fn test_ascii() {
     // Testing mcrouter
-    let client = helpers::connect("memcache://localhost:11211?protocol=ascii")
+    let client = helpers::connect("memcache://localhost:11311?protocol=ascii")
         .await
         .unwrap();
 
@@ -56,7 +56,7 @@ async fn test_ascii() {
 #[tokio::test]
 async fn test_set_too_large_value() {
     // Testing mcrouter
-    let client = helpers::connect("memcache://localhost:11211?protocol=ascii")
+    let client = helpers::connect("memcache://localhost:11311?protocol=ascii")
         .await
         .unwrap();
 

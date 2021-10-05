@@ -12,9 +12,16 @@ const COMMAND_DELETE: &[u8] = b"delete ";
 const COMMAND_TOUCH: &[u8] = b"touch ";
 const COMMAND_VERSION: &[u8] = b"version\r\n";
 
+/// Storage command
+#[derive(Debug)]
 pub enum StorageCommand {
+    /// "set" means "store this data".
     Set,
+    /// "add" means "store this data, but only if the server *doesn't* already
+    /// hold data for this key".
     Add,
+    /// "replace" means "store this data, but only if the server *does*
+    /// already hold data for this key".
     Replace,
 }
 
@@ -28,20 +35,20 @@ impl From<StorageCommand> for &'static [u8] {
     }
 }
 
-// <command name> <key> <flags> <exptime> <bytes> [noreply]\r\n
-//
-//
-// - "STORED\r\n", to indicate success.
-//
-// - "NOT_STORED\r\n" to indicate the data was not stored, but not
-// because of an error. This normally means that the
-// condition for an "add" or a "replace" command wasn't met.
-//
-// - "EXISTS\r\n" to indicate that the item you are trying to store with
-// a "cas" command has been modified since you last fetched it.
-//
-// - "NOT_FOUND\r\n" to indicate that the item you are trying to store
-// with a "cas" command did not exist.
+/// <command name> <key> <flags> <exptime> <bytes> [noreply]\r\n
+///
+///
+/// - "STORED\r\n", to indicate success.
+///
+/// - "NOT_STORED\r\n" to indicate the data was not stored, but not
+/// because of an error. This normally means that the
+/// condition for an "add" or a "replace" command wasn't met.
+///
+/// - "EXISTS\r\n" to indicate that the item you are trying to store with
+/// a "cas" command has been modified since you last fetched it.
+///
+/// - "NOT_FOUND\r\n" to indicate that the item you are trying to store
+/// with a "cas" command did not exist.
 pub async fn storage<K>(
     mut conn: PoolConnection<'_>,
     command: StorageCommand,
@@ -98,8 +105,12 @@ where
     }
 }
 
+/// Retrieval command
+#[derive(Debug)]
 pub enum RetrievalCommand {
+    /// "get" means "get this data".
     Get,
+    /// "gets" means "get multiple data".
     Gets,
 }
 
@@ -112,17 +123,17 @@ impl From<RetrievalCommand> for &'static [u8] {
     }
 }
 
-// get <key>*\r\n
-// gets <key>*\r\n
-//
-//
-// VALUE <key> <flags> <bytes> [<cas unique>]\r\n
-// <data block>\r\n
-// VALUE <key> <flags> <bytes> [<cas unique>]\r\n
-// <data block>\r\n
-// VALUE <key> <flags> <bytes> [<cas unique>]\r\n
-// <data block>\r\n
-// "END\r\n"
+/// get <key>*\r\n
+/// gets <key>*\r\n
+///
+///
+/// VALUE <key> <flags> <bytes> [<cas unique>]\r\n
+/// <data block>\r\n
+/// VALUE <key> <flags> <bytes> [<cas unique>]\r\n
+/// <data block>\r\n
+/// VALUE <key> <flags> <bytes> [<cas unique>]\r\n
+/// <data block>\r\n
+/// "END\r\n"
 pub async fn retrieve<K>(
     mut conn: PoolConnection<'_>,
     command: RetrievalCommand,
@@ -171,13 +182,13 @@ where
     }
 }
 
-// delete <key> [noreply]\r\n
-//
-//
-// - "DELETED\r\n" to indicate success
-//
-// - "NOT_FOUND\r\n" to indicate that the item with this key was not
-//   found.
+/// delete <key> [noreply]\r\n
+///
+///
+/// - "DELETED\r\n" to indicate success
+///
+/// - "NOT_FOUND\r\n" to indicate that the item with this key was not
+///   found.
 pub async fn delete<K>(
     mut conn: PoolConnection<'_>,
     key: K,
@@ -213,15 +224,15 @@ where
     }
 }
 
-// touch <key> <exptime> [noreply]\r\n
-//
-//
-// The response line to this command can be one of:
-//
-// - "TOUCHED\r\n" to indicate success
-//
-// - "NOT_FOUND\r\n" to indicate that the item with this key was not
-//   found.
+/// touch <key> <exptime> [noreply]\r\n
+///
+///
+/// The response line to this command can be one of:
+///
+/// - "TOUCHED\r\n" to indicate success
+///
+/// - "NOT_FOUND\r\n" to indicate that the item with this key was not
+///   found.
 pub async fn touch<K>(
     mut conn: PoolConnection<'_>,
     key: K,
@@ -264,10 +275,10 @@ where
     }
 }
 
-// version\r\n
-//
-//
-// "VERSION <version>\r\n", where <version> is the version string for the
+/// version\r\n
+///
+///
+/// "VERSION <version>\r\n", where <version> is the version string for the
 pub async fn version(conn: &mut PoolConnection<'_>) -> Result<String, MemcacheError> {
     // <command name>
     let _ = conn.write(COMMAND_VERSION).await?;

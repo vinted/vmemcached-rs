@@ -13,6 +13,7 @@ pub struct ConnectionManager {
 }
 
 impl ConnectionManager {
+    /// Initialize ConnectionManager with given URL
     pub fn new(url: Url) -> ConnectionManager {
         ConnectionManager { url }
     }
