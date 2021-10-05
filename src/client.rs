@@ -28,9 +28,9 @@ impl Client {
     }
 
     /// Get pool connection
-    pub async fn get_connection<'f>(
-        &'f self,
-    ) -> Result<PooledConnection<'f, ConnectionManager>, MemcacheError> {
+    pub async fn get_connection(
+        &self,
+    ) -> Result<PooledConnection<'_, ConnectionManager>, MemcacheError> {
         Ok(self.0.get().await?)
     }
 

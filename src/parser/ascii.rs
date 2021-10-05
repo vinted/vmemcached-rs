@@ -52,7 +52,7 @@ fn parse_ascii_error(buf: &[u8]) -> IResult<&[u8], Response> {
         crlf,
     );
 
-    map(parser, |e| Response::Error(e))(buf)
+    map(parser, Response::Error)(buf)
 }
 
 fn parse_ascii_u32(buf: &[u8]) -> IResult<&[u8], u32> {
