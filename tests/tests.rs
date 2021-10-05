@@ -53,15 +53,13 @@ async fn tcp_test() {
     let value: Option<String> = client.get("foo").await.unwrap();
     assert_eq!(value, None);
 
-    // TODO: implement
-    // client.add("foo", "bar", expiration).await.unwrap();
-    // let value: Option<String> = client.get("foo").await.unwrap();
-    // assert_eq!(value, Some(String::from("bar")));
+    client.add("foo", "bar", expiration).await.unwrap();
+    let value: Option<String> = client.get("foo").await.unwrap();
+    assert_eq!(value, Some(String::from("bar")));
 
-    // TODO: implement
-    // client.replace("foo", "baz", expiration).unwrap();
-    // let value: Option<String> = client.get("foo").unwrap();
-    // assert_eq!(value, Some(String::from("baz")));
+    client.replace("foo", "baz", expiration).await.unwrap();
+    let value: Option<String> = client.get("foo").await.unwrap();
+    assert_eq!(value, Some(String::from("baz")));
 
     assert_eq!(
         client
@@ -108,23 +106,23 @@ async fn tcp_test() {
                 let result: Option<String> = client.get(key.as_str()).await.unwrap();
                 assert_eq!(result.as_ref(), Some(&value));
 
-                // TODO: implement
-                // let result = client.add(key.as_str(), &value, expiration);
-                // assert!(result.is_ok());
+                let result = client.add(key.as_str(), &value, expiration).await;
+                assert!(result.is_ok());
 
                 client.delete(key.as_str()).await.unwrap();
                 let result: Option<String> = client.get(key.as_str()).await.unwrap();
                 assert_eq!(result, None);
 
-                // TODO: implement
-                // client.add(key.as_str(), &value, expiration).unwrap();
-                // let result: Option<String> = client.get(key.as_str()).unwrap();
-                // assert_eq!(result.as_ref(), Some(&value));
+                client.add(key.as_str(), &value, expiration).await.unwrap();
+                let result: Option<String> = client.get(key.as_str()).await.unwrap();
+                assert_eq!(result.as_ref(), Some(&value));
 
-                // TODO: implement
-                // client.replace(key.as_str(), &value, expiration).unwrap();
-                // let result: Option<String> = client.get(key.as_str()).unwrap();
-                // assert_eq!(result.as_ref(), Some(&value));
+                client
+                    .replace(key.as_str(), &value, expiration)
+                    .await
+                    .unwrap();
+                let result: Option<String> = client.get(key.as_str()).await.unwrap();
+                assert_eq!(result.as_ref(), Some(&value));
             });
         }
     }

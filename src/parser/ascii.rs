@@ -63,15 +63,11 @@ fn parse_ascii_u64(buf: &[u8]) -> IResult<&[u8], u64> {
     map_res(take_while_m_n(1, 20, is_digit), btou)(buf)
 }
 
-fn parse_ascii_incrdecr(buf: &[u8]) -> IResult<&[u8], Response> {
-    terminated(map(parse_ascii_u64, Response::IncrDecr), crlf)(buf)
-}
-
 fn is_key_char(chr: u8) -> bool {
     chr > 32 && chr < 127
 }
 
-fn _parse_ascii_value(buf: &[u8]) -> IResult<&[u8], Value> {
+fn parse_ascii_value(buf: &[u8]) -> IResult<&[u8], Value> {
     let kf = take_while1(is_key_char);
     let (buf, (_, key, _, flags, _, len, _, cas, _)) = tuple((
         // VALUE key flags data_len [cas id]\r\n
@@ -100,17 +96,11 @@ fn _parse_ascii_value(buf: &[u8]) -> IResult<&[u8], Value> {
 
 fn parse_ascii_values(buf: &[u8]) -> IResult<&[u8], Response> {
     let values = map(
-        fold_many0(_parse_ascii_value, Vec::new, |mut acc, x| {
+        fold_many0(parse_ascii_value, Vec::new, |mut acc, x| {
             acc.push(x);
             acc
         }),
-        |values: Vec<Value>| {
-            if values.is_empty() {
-                Response::Data(None)
-            } else {
-                Response::Data(Some(values))
-            }
-        },
+        Response::Data,
     );
 
     terminated(values, tag("END\r\n"))(buf)
@@ -118,12 +108,7 @@ fn parse_ascii_values(buf: &[u8]) -> IResult<&[u8], Response> {
 
 pub(crate) fn parse_ascii_response(buf: &[u8]) -> Result<Option<(usize, Response)>, ErrorKind> {
     let bufn = buf.len();
-    let result = alt((
-        _parse_ascii_status,
-        parse_ascii_error,
-        parse_ascii_incrdecr,
-        parse_ascii_values,
-    ))(buf);
+    let result = alt((_parse_ascii_status, parse_ascii_error, parse_ascii_values))(buf);
 
     match result {
         Ok((left, response)) => {
@@ -162,18 +147,17 @@ mod tests {
                 (b"ERROR\r\n", 7, Response::Error(ErrorKind::NonexistentCommand)),
                 (b"CLIENT_ERROR foo\r\n", 18, Response::Error(ErrorKind::Client(FOO_STR.to_string()))),
                 (b"SERVER_ERROR bar\r\n", 18, Response::Error(ErrorKind::Server(BAR_STR.to_string()))),
-                (b"42\r\n", 4, Response::IncrDecr(42)),
-                (b"END\r\n", 5, Response::Data(None)),
-                (b"VALUE foo 42 11\r\nhello world\r\nEND\r\n", 35, Response::Data(Some(
+                (b"END\r\n", 5, Response::Data(vec![])),
+                (b"VALUE foo 42 11\r\nhello world\r\nEND\r\n", 35, Response::Data(
                     vec![Value { key: FOO_KEY.to_vec(), flags: 42, cas: None, data: HELLO_WORLD_DATA.to_vec() }]
-                ))),
+                )),
                 (b"VALUE foo 42 11\r\nhello world\r\nVALUE bar 43 11 15\r\nhello world\r\nEND\r\n", 68,
-                    Response::Data(Some(
+                    Response::Data(
                         vec![
                             Value { key: FOO_KEY.to_vec(), flags: 42, cas: None, data: HELLO_WORLD_DATA.to_vec() },
                             Value { key: BAR_KEY.to_vec(), flags: 43, cas: Some(15), data: HELLO_WORLD_DATA.to_vec() },
                         ]
-                    ))
+                    )
                 ),
             ]
         };

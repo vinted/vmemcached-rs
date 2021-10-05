@@ -43,9 +43,7 @@ pub enum Response {
     /// The status of a given operation, which may or may not have succeeded.
     Status(Status),
     /// Data response, which is only returned for reads.
-    Data(Option<Vec<Value>>),
-    /// Resulting value of a key after an increment/decrement operation.
-    IncrDecr(u64),
+    Data(Vec<Value>),
     /// An error occurred for the given operation.
     Error(ErrorKind),
 }
@@ -59,12 +57,12 @@ impl Response {
 impl fmt::Display for Status {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::Stored => write!(f, "stored"),
-            Self::NotStored => write!(f, "not stored"),
-            Self::Deleted => write!(f, "deleted"),
-            Self::Touched => write!(f, "touched"),
-            Self::Exists => write!(f, "exists"),
-            Self::NotFound => write!(f, "not found"),
+            Self::Stored => "stored".fmt(f),
+            Self::NotStored => "not stored".fmt(f),
+            Self::Deleted => "deleted".fmt(f),
+            Self::Touched => "touched".fmt(f),
+            Self::Exists => "exists".fmt(f),
+            Self::NotFound => "not found".fmt(f),
         }
     }
 }

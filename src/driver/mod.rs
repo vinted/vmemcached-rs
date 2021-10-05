@@ -12,6 +12,8 @@ const COMMAND_DELETE: &[u8] = b"delete ";
 const COMMAND_TOUCH: &[u8] = b"touch ";
 const COMMAND_VERSION: &[u8] = b"version\r\n";
 
+const RESPONSE_BUFFER_BYTES: usize = 64;
+
 /// Storage command
 #[derive(Debug)]
 pub enum StorageCommand {
@@ -49,17 +51,18 @@ impl From<StorageCommand> for &'static [u8] {
 ///
 /// - "NOT_FOUND\r\n" to indicate that the item you are trying to store
 /// with a "cas" command did not exist.
-pub async fn storage<K>(
+pub async fn storage<K, E>(
     mut conn: PoolConnection<'_>,
     command: StorageCommand,
     key: K,
     flags: u32,
-    expiration: impl Into<Option<Duration>>,
+    expiration: E,
     bytes: Vec<u8>,
     noreply: bool,
 ) -> Result<Response, MemcacheError>
 where
     K: AsRef<[u8]>,
+    E: Into<Option<Duration>>,
 {
     // <command name>
     let _ = conn.write(command.into()).await?;
@@ -95,7 +98,7 @@ where
     let _ = conn.flush().await?;
 
     // 64 bytes should be enough to address all storage responses
-    let mut buffer: BytesMut = BytesMut::with_capacity(64);
+    let mut buffer: BytesMut = BytesMut::with_capacity(RESPONSE_BUFFER_BYTES);
 
     let _ = conn.read_buf(&mut buffer).await?;
 
@@ -147,7 +150,7 @@ where
     let _ = conn.write(command.into()).await?;
 
     // <key>
-    for key in keys.iter() {
+    for key in &*keys {
         let _ = conn.write(EMPTY_SPACE_BYTES).await?; // ends key without empty space
         let _ = conn.write_all(key.as_ref()).await?;
     }
@@ -163,8 +166,13 @@ where
 
         match parser::parse_ascii_response(&buffer) {
             Ok(Some((_n, response))) => match response {
-                Response::Data(Some(values)) => return Ok(Some(values)),
-                Response::Data(None) => return Ok(None),
+                Response::Data(values) => {
+                    return if values.is_empty() {
+                        Ok(None)
+                    } else {
+                        Ok(Some(values))
+                    };
+                }
                 Response::Error(e) => return Err(MemcacheError::Memcache(e)),
                 _ => return Ok(None),
             },
@@ -209,7 +217,7 @@ where
     let _ = conn.flush().await?;
 
     // 64 bytes should be enough to address all storage responses
-    let mut buffer: BytesMut = BytesMut::with_capacity(64);
+    let mut buffer: BytesMut = BytesMut::with_capacity(RESPONSE_BUFFER_BYTES);
 
     let _ = conn.read_buf(&mut buffer).await?;
 
@@ -228,14 +236,16 @@ where
 ///
 /// - "NOT_FOUND\r\n" to indicate that the item with this key was not
 ///   found.
-pub async fn touch<K>(
+pub async fn touch<K, E>(
     mut conn: PoolConnection<'_>,
     key: K,
-    expiration: impl Into<Option<Duration>>,
+    expiration: E,
     noreply: bool,
 ) -> Result<Response, MemcacheError>
 where
     K: AsRef<[u8]>,
+
+    E: Into<Option<Duration>>,
 {
     // <command name>
     let _ = conn.write(COMMAND_TOUCH).await?;
@@ -260,7 +270,7 @@ where
     let _ = conn.flush().await?;
 
     // 64 bytes should be enough to address all storage responses
-    let mut buffer: BytesMut = BytesMut::with_capacity(64);
+    let mut buffer: BytesMut = BytesMut::with_capacity(RESPONSE_BUFFER_BYTES);
 
     let _ = conn.read_buf(&mut buffer).await?;
 
@@ -282,7 +292,7 @@ pub async fn version(conn: &mut PoolConnection<'_>) -> Result<String, MemcacheEr
     let _ = conn.flush().await?;
 
     // 64 bytes should be enough to address all storage responses
-    let mut buffer: BytesMut = BytesMut::with_capacity(64);
+    let mut buffer: BytesMut = BytesMut::with_capacity(RESPONSE_BUFFER_BYTES);
 
     let _ = conn.read_buf(&mut buffer).await?;
 

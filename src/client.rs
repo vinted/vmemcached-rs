@@ -5,6 +5,7 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::time::Duration;
 
+use crate::driver::{RetrievalCommand, StorageCommand};
 use crate::manager::ConnectionManager;
 use crate::parser::{self, Response};
 use crate::{codec, driver, ClientError, MemcacheError, Pool};
@@ -56,7 +57,7 @@ impl Client {
 
         // <command name> <key> <flags> <exptime> <bytes> [noreply]\r\n
         self.get_connection()
-            .and_then(|conn| driver::retrieve(conn, driver::RetrievalCommand::Get, keys))
+            .and_then(|conn| driver::retrieve(conn, RetrievalCommand::Get, keys))
             .and_then(|response| async {
                 if let Some(mut values) = response {
                     let value = values.swap_remove(0);
@@ -79,7 +80,7 @@ impl Client {
 
         // <command name> <key> <flags> <exptime> <bytes> [noreply]\r\n
         self.get_connection()
-            .and_then(|conn| driver::retrieve(conn, driver::RetrievalCommand::Gets, keys))
+            .and_then(|conn| driver::retrieve(conn, RetrievalCommand::Gets, keys))
             .and_then(|response| async {
                 if let Some(values) = response {
                     let mut map: HashMap<String, V> = HashMap::with_capacity(values.len());
@@ -97,30 +98,24 @@ impl Client {
             .await
     }
 
-    /// Set a key with associate value into memcached server with expiration seconds.
-    pub async fn set<K: AsRef<[u8]>, T: Serialize>(
+    #[inline]
+    async fn store<K: AsRef<[u8]>, T: Serialize, E>(
         &self,
+        cmd: StorageCommand,
         key: K,
         value: T,
-        expiration: impl Into<Option<Duration>>,
-    ) -> Result<parser::Status, MemcacheError> {
+        expiration: E,
+    ) -> Result<parser::Status, MemcacheError>
+    where
+        E: Into<Option<Duration>>,
+    {
         check_key_len(&key)?;
 
         let encoded = codec::encode(value)?;
 
         // <command name> <key> <flags> <exptime> <bytes> [noreply]\r\n
         self.get_connection()
-            .and_then(|conn| {
-                driver::storage(
-                    conn,
-                    driver::StorageCommand::Set,
-                    key,
-                    0,
-                    expiration,
-                    encoded,
-                    false,
-                )
-            })
+            .and_then(|conn| driver::storage(conn, cmd, key, 0, expiration, encoded, false))
             .and_then(|response| async {
                 match response {
                     Response::Status(s) => Ok(s),
@@ -128,6 +123,50 @@ impl Client {
                     _ => unreachable!(),
                 }
             })
+            .await
+    }
+
+    /// Set a key with associate value into memcached server with expiration seconds.
+    pub async fn set<K: AsRef<[u8]>, T: Serialize, E>(
+        &self,
+        key: K,
+        value: T,
+        expiration: E,
+    ) -> Result<parser::Status, MemcacheError>
+    where
+        E: Into<Option<Duration>>,
+    {
+        self.store(driver::StorageCommand::Set, key, value, expiration)
+            .await
+    }
+
+    /// Add means "store this data, but only if the server *doesn't* already
+    /// hold data for this key".
+    pub async fn add<K: AsRef<[u8]>, T: Serialize, E>(
+        &self,
+        key: K,
+        value: T,
+        expiration: E,
+    ) -> Result<parser::Status, MemcacheError>
+    where
+        E: Into<Option<Duration>>,
+    {
+        self.store(driver::StorageCommand::Add, key, value, expiration)
+            .await
+    }
+
+    /// "replace" means "store this data, but only if the server *does*
+    /// already hold data for this key".
+    pub async fn replace<K: AsRef<[u8]>, T: Serialize, E>(
+        &self,
+        key: K,
+        value: T,
+        expiration: E,
+    ) -> Result<parser::Status, MemcacheError>
+    where
+        E: Into<Option<Duration>>,
+    {
+        self.store(driver::StorageCommand::Replace, key, value, expiration)
             .await
     }
 
@@ -149,11 +188,14 @@ impl Client {
     }
 
     /// Delete a key with associate value into memcached server
-    pub async fn touch<K: AsRef<[u8]>>(
+    pub async fn touch<K: AsRef<[u8]>, E>(
         &self,
         key: K,
-        expiration: impl Into<Option<Duration>>,
-    ) -> Result<parser::Status, MemcacheError> {
+        expiration: E,
+    ) -> Result<parser::Status, MemcacheError>
+    where
+        E: Into<Option<Duration>>,
+    {
         check_key_len(&key)?;
 
         // <command name> <key> <flags> <exptime> <bytes> [noreply]\r\n
