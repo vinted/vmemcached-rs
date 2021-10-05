@@ -5,7 +5,20 @@ use std::io;
 use std::str;
 use std::string;
 
-use crate::parser;
+/// Errors related to a memcached operation.
+#[derive(Clone, Debug, PartialEq)]
+pub enum ErrorKind {
+    /// General error that may or may not have come from either the server or this crate.
+    Generic(String),
+    /// The command sent by the client does not exist.
+    NonexistentCommand,
+    /// Protocol-level error i.e. an invalid response from memcached for the given operation.
+    Protocol(Option<String>),
+    /// An error from memcached related to CLIENT_ERROR.
+    Client(String),
+    /// An error from memcached related to SERVER_ERROR.
+    Server(String),
+}
 
 /// Stands for errors raised from vmemcached
 #[derive(Debug)]
@@ -25,7 +38,7 @@ pub enum MemcacheError {
     /// Nom error
     Nom(String),
     /// Memcache error
-    Memcache(parser::ErrorKind),
+    Memcache(ErrorKind),
 }
 
 impl fmt::Display for MemcacheError {
@@ -64,8 +77,8 @@ impl From<string::FromUtf8Error> for MemcacheError {
     }
 }
 
-impl From<parser::ErrorKind> for MemcacheError {
-    fn from(e: parser::ErrorKind) -> MemcacheError {
+impl From<ErrorKind> for MemcacheError {
+    fn from(e: ErrorKind) -> MemcacheError {
         MemcacheError::Memcache(e)
     }
 }

@@ -43,10 +43,10 @@ mod parser;
 pub mod driver;
 
 pub use crate::client::Client;
-pub use crate::error::{ClientError, MemcacheError};
+pub use crate::error::{ClientError, ErrorKind, MemcacheError};
 pub use crate::manager::ConnectionManager;
 pub use connection::Connection;
-pub use parser::{ErrorKind, Status};
+pub use parser::Status;
 
 /// R2D2 connection pool
 pub type Pool = bb8::Pool<ConnectionManager>;

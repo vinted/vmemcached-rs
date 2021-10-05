@@ -3,6 +3,8 @@ use std::fmt;
 mod ascii;
 pub(crate) use ascii::{parse_ascii_response, parse_ascii_status, parse_version};
 
+use crate::ErrorKind;
+
 /// A value from memcached.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Value {
@@ -33,21 +35,6 @@ pub enum Status {
     Exists,
     /// The key was not found.
     NotFound,
-}
-
-/// Errors related to a memcached operation.
-#[derive(Clone, Debug, PartialEq)]
-pub enum ErrorKind {
-    /// General error that may or may not have come from either the server or this crate.
-    Generic(String),
-    /// The command sent by the client does not exist.
-    NonexistentCommand,
-    /// Protocol-level error i.e. an invalid response from memcached for the given operation.
-    Protocol(Option<String>),
-    /// An error from memcached related to CLIENT_ERROR.
-    Client(String),
-    /// An error from memcached related to SERVER_ERROR.
-    Server(String),
 }
 
 /// Response to a memcached operation.
