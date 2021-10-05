@@ -43,6 +43,7 @@ impl bb8::ManageConnection for ConnectionManager {
         driver::version(conn)
             .await
             .map(|_| ())
+            // TODO: rethink this hides real error
             .map_err(|_| io::Error::from(io::ErrorKind::Other))
     }
 

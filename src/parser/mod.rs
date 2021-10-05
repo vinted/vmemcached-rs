@@ -48,12 +48,6 @@ pub enum Response {
     Error(ErrorKind),
 }
 
-impl Response {
-    pub fn is_server_error(&self) -> bool {
-        matches!(self, Response::Error(ErrorKind::Server(_)))
-    }
-}
-
 impl fmt::Display for Status {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
