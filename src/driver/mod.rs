@@ -117,8 +117,8 @@ pub enum RetrievalCommand {
 impl From<RetrievalCommand> for &'static [u8] {
     fn from(c: RetrievalCommand) -> &'static [u8] {
         match c {
-            RetrievalCommand::Get => b"get ",
-            RetrievalCommand::Gets => b"gets ",
+            RetrievalCommand::Get => b"get",
+            RetrievalCommand::Gets => b"gets",
         }
     }
 }
@@ -147,16 +147,11 @@ where
     let _ = conn.write(command.into()).await?;
 
     // <key>
-    if keys.len() == 1 {
-        let _ = conn.write_all(keys[0].as_ref()).await?;
-        let _ = conn.write(NEW_LINE_BYTES).await?;
-    } else {
-        for key in keys.iter() {
-            let _ = conn.write_all(key.as_ref()).await?;
-            let _ = conn.write(EMPTY_SPACE_BYTES).await?;
-        }
-        let _ = conn.write(NEW_LINE_BYTES).await?;
+    for key in keys.iter() {
+        let _ = conn.write(EMPTY_SPACE_BYTES).await?; // ends key without empty space
+        let _ = conn.write_all(key.as_ref()).await?;
     }
+    let _ = conn.write(NEW_LINE_BYTES).await?;
 
     // Flush command
     let _ = conn.flush().await?;
