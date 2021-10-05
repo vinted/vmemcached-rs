@@ -10,6 +10,18 @@ use std::time;
 
 mod helpers;
 
+#[tokio::test]
+async fn test_version() {
+    // Testing mcrouter
+    let client = helpers::connect("memcache://localhost:11211?protocol=ascii")
+        .await
+        .unwrap();
+
+    let version = client.version().await.unwrap();
+
+    assert_eq!(version, "1.6.9");
+}
+
 // TODO:
 // fn gen_random_key() -> String {
 //     let bs = iter::repeat(())

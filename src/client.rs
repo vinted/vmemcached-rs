@@ -1,9 +1,11 @@
 use bb8::PooledConnection;
+use bytes::BytesMut;
 use futures_util::TryFutureExt;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::time::Duration;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::manager::ConnectionManager;
 use crate::parser::{self, Response};
@@ -43,60 +45,10 @@ impl Client {
     }
 
     // /// Get the memcached server version.
-    // ///
-    // /// Example:
-    // ///
-    // /// ```rust
-    // /// let pool = vmemcached::Pool::builder()
-    // ///     .connection_timeout(std::time::Duration::from_secs(1))
-    // ///     .build(vmemcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
-    // ///     .unwrap();
-    // ///
-    // /// let client = vmemcached::Client::with_pool(pool);
-    // ///
-    // /// client.version().unwrap();
-    // /// ```
-    // pub async fn version(&self) -> Result<String, MemcacheError> {
-    //     self.get_connection().version()
-    // }
-    //
-    // /// Flush all cache on memcached server immediately.
-    // ///
-    // /// Example:
-    // ///
-    // /// ```rust
-    // /// let pool = vmemcached::Pool::builder()
-    // ///     .connection_timeout(std::time::Duration::from_secs(1))
-    // ///     .build(vmemcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
-    // ///     .unwrap();
-    // ///
-    // /// let client = vmemcached::Client::with_pool(pool);
-    // ///
-    // /// client.flush().unwrap();
-    // /// ```
-    // #[cfg(not(feature = "mcrouter"))]
-    // pub fn flush(&self) -> Result<(), MemcacheError> {
-    //     self.get_connection()?.flush()
-    // }
-    //
-    // /// Flush all cache on memcached server with a delay seconds.
-    // ///
-    // /// Example:
-    // ///
-    // /// ```rust
-    // /// let pool = vmemcached::Pool::builder()
-    // ///     .connection_timeout(std::time::Duration::from_secs(1))
-    // ///     .build(vmemcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
-    // ///     .unwrap();
-    // ///
-    // /// let client = vmemcached::Client::with_pool(pool);
-    // ///
-    // /// client.flush_with_delay(10).unwrap();
-    // /// ```
-    // #[cfg(not(feature = "mcrouter"))]
-    // pub fn flush_with_delay(&self, delay: u32) -> Result<(), MemcacheError> {
-    //     self.get_connection()?.flush_with_delay(delay)
-    // }
+    pub async fn version(&self) -> Result<String, MemcacheError> {
+        let mut conn = self.get_connection().await?;
+        driver::version(&mut conn).await
+    }
 
     /// Get a key from memcached server.
     pub async fn get<K: AsRef<[u8]>, V: DeserializeOwned>(

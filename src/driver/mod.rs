@@ -5,11 +5,12 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use crate::parser::{Response, Value};
 use crate::{parser, MemcacheError, PoolConnection};
 
-const EMPTY_BYTES: &[u8] = b" ";
+const EMPTY_SPACE_BYTES: &[u8] = b" ";
 const NEW_LINE_BYTES: &[u8] = b"\r\n";
 const NO_REPLY_BYTES: &[u8] = b" noreply\r\n";
 const COMMAND_DELETE: &[u8] = b"delete ";
 const COMMAND_TOUCH: &[u8] = b"touch ";
+const COMMAND_VERSION: &[u8] = b"version\r\n";
 
 pub enum StorageCommand {
     Set,
@@ -57,16 +58,16 @@ where
     let _ = conn.write(command.into()).await?;
     // <key>
     let _ = conn.write_all(key.as_ref()).await?;
-    let _ = conn.write(EMPTY_BYTES).await?;
+    let _ = conn.write(EMPTY_SPACE_BYTES).await?;
 
     // <flags>
     let _ = conn.write(flags.to_string().as_ref()).await?;
-    let _ = conn.write(EMPTY_BYTES).await?;
+    let _ = conn.write(EMPTY_SPACE_BYTES).await?;
 
     // <exptime>
     let exptime = expiration.into().map(|d| d.as_secs()).unwrap_or(0);
     let _ = conn.write(exptime.to_string().as_ref()).await?;
-    let _ = conn.write(EMPTY_BYTES).await?;
+    let _ = conn.write(EMPTY_SPACE_BYTES).await?;
 
     // <bytes>
     let _ = conn.write(bytes.len().to_string().as_bytes()).await?;
@@ -130,11 +131,19 @@ pub async fn retrieve<K>(
 where
     K: AsRef<[u8]>,
 {
+    debug_assert!(!keys.is_empty());
     // <command name>
     let _ = conn.write(command.into()).await?;
+
     // <key>
-    for key in keys.iter() {
-        let _ = conn.write_all(key.as_ref()).await?;
+    if keys.len() == 1 {
+        let _ = conn.write_all(keys[0].as_ref()).await?;
+        let _ = conn.write(NEW_LINE_BYTES).await?;
+    } else {
+        for key in keys.iter() {
+            let _ = conn.write_all(key.as_ref()).await?;
+            let _ = conn.write(EMPTY_SPACE_BYTES).await?;
+        }
         let _ = conn.write(NEW_LINE_BYTES).await?;
     }
 
@@ -190,8 +199,6 @@ where
         let _ = conn.write(NEW_LINE_BYTES).await?;
     }
 
-    let _ = conn.write(NEW_LINE_BYTES).await?;
-
     // Flush command
     let _ = conn.flush().await?;
 
@@ -228,12 +235,12 @@ where
     let _ = conn.write(COMMAND_TOUCH).await?;
     // <key>
     let _ = conn.write_all(key.as_ref()).await?;
-    let _ = conn.write(EMPTY_BYTES).await?;
+    let _ = conn.write(EMPTY_SPACE_BYTES).await?;
 
     // <exptime>
     let exptime = expiration.into().map(|d| d.as_secs()).unwrap_or(0);
     let _ = conn.write(exptime.to_string().as_ref()).await?;
-    let _ = conn.write(EMPTY_BYTES).await?;
+    let _ = conn.write(EMPTY_SPACE_BYTES).await?;
 
     // [noreply]
     if noreply {
@@ -242,8 +249,6 @@ where
     } else {
         let _ = conn.write(NEW_LINE_BYTES).await?;
     }
-
-    let _ = conn.write(NEW_LINE_BYTES).await?;
 
     // Flush command
     let _ = conn.flush().await?;
@@ -254,6 +259,28 @@ where
     let _ = conn.read_buf(&mut buffer).await?;
 
     match parser::parse_ascii_status(&buffer) {
+        Ok((_left, result)) => Ok(result),
+        Err(e) => Err(MemcacheError::Nom(format!("{}", e))),
+    }
+}
+
+// version\r\n
+//
+//
+// "VERSION <version>\r\n", where <version> is the version string for the
+pub async fn version(conn: &mut PoolConnection<'_>) -> Result<String, MemcacheError> {
+    // <command name>
+    let _ = conn.write(COMMAND_VERSION).await?;
+
+    // Flush command
+    let _ = conn.flush().await?;
+
+    // 64 bytes should be enough to address all storage responses
+    let mut buffer: BytesMut = BytesMut::with_capacity(64);
+
+    let _ = conn.read_buf(&mut buffer).await?;
+
+    match parser::parse_version(&buffer) {
         Ok((_left, result)) => Ok(result),
         Err(e) => Err(MemcacheError::Nom(format!("{}", e))),
     }

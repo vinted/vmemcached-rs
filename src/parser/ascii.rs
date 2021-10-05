@@ -29,6 +29,15 @@ pub fn _parse_ascii_status(buf: &[u8]) -> IResult<&[u8], Response> {
     )(buf)
 }
 
+pub fn parse_version(buf: &[u8]) -> IResult<&[u8], String> {
+    terminated(
+        map_res(preceded(tag(b"VERSION "), take_until("\r\n")), |s| {
+            std::str::from_utf8(s).map(|s| s.to_string())
+        }),
+        crlf,
+    )(buf)
+}
+
 pub fn parse_ascii_status(buf: &[u8]) -> IResult<&[u8], Response> {
     alt((_parse_ascii_status, parse_ascii_error))(buf)
 }

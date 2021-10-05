@@ -2,7 +2,7 @@ version: '3'
 
 services:
   memcached:
-    image: memcached:alpine
+    image: memcached:1.6.9-alpine3.14
     container_name: ci-memcached
     command: memcached -p 11211 -U 11211
 

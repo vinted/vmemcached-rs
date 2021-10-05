@@ -4,6 +4,7 @@ use std::io;
 use url::Url;
 
 use crate::connection::Connection;
+use crate::driver;
 
 /// A `bb8::ManageConnection` for `memcache_async::ascii::Protocol`.
 #[derive(Clone, Debug)]
@@ -38,9 +39,10 @@ impl bb8::ManageConnection for ConnectionManager {
         &self,
         conn: &mut bb8::PooledConnection<'_, Self>,
     ) -> Result<(), Self::Error> {
-        // TODO:
-        // conn.version().await.map(|_| ())
-        Ok(())
+        driver::version(conn)
+            .await
+            .map(|_| ())
+            .map_err(|_| io::Error::from(io::ErrorKind::Other))
     }
 
     fn has_broken(&self, _: &mut Self::Connection) -> bool {
