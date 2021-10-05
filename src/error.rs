@@ -6,6 +6,8 @@ use std::num;
 use std::str;
 use std::string;
 
+use crate::parser;
+
 /// Client-side errors
 #[derive(Debug, PartialEq)]
 pub enum ClientError {
@@ -120,6 +122,7 @@ impl From<ServerError> for MemcacheError {
     }
 }
 
+// TODO: remove
 #[derive(Debug)]
 pub enum ParseError {
     Bool(str::ParseBoolError),
@@ -222,6 +225,8 @@ pub enum MemcacheError {
     Serde(simd_json::Error),
     /// Nom error
     Nom(String),
+    /// Memcache error
+    Memcache(parser::ErrorKind),
 }
 
 impl fmt::Display for MemcacheError {
@@ -238,6 +243,7 @@ impl fmt::Display for MemcacheError {
             MemcacheError::PoolError(ref err) => err.fmt(f),
             MemcacheError::Serde(ref err) => err.fmt(f),
             MemcacheError::Nom(ref err) => err.fmt(f),
+            MemcacheError::Memcache(ref err) => err.fmt(f),
         }
     }
 }
@@ -255,8 +261,15 @@ impl error::Error for MemcacheError {
             MemcacheError::CommandError(_) => None,
             MemcacheError::PoolError(ref p) => p.source(),
             MemcacheError::Serde(ref p) => p.source(),
-            MemcacheError::Nom(ref p) => None,
+            MemcacheError::Nom(_) => None,
+            MemcacheError::Memcache(_) => None,
         }
+    }
+}
+
+impl From<parser::ErrorKind> for MemcacheError {
+    fn from(e: parser::ErrorKind) -> MemcacheError {
+        MemcacheError::Memcache(e)
     }
 }
 

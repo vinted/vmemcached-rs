@@ -1,15 +1,13 @@
 use bb8::PooledConnection;
-use bytes::{BufMut, BytesMut};
 use futures_util::TryFutureExt;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::collections::HashMap;
-use std::io::Write;
 use std::time::Duration;
-use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 use crate::manager::ConnectionManager;
-use crate::{codec, driver, parser, ClientError, MemcacheError, Pool, PoolConnection};
+use crate::parser::{self, Response};
+use crate::{codec, driver, ClientError, MemcacheError, Pool};
 
 /// Stats type
 pub type Stats = HashMap<String, String>;
@@ -25,10 +23,6 @@ pub(crate) fn check_key_len<K: AsRef<[u8]>>(key: K) -> Result<(), MemcacheError>
         Ok(())
     }
 }
-
-const EMPTY_BYTES: &[u8; 1] = b" ";
-const NEW_LINE_BYTES: &[u8; 2] = b"\r\n";
-const NO_REPLY_BYTES: &[u8; 10] = b" noreply\r\n";
 
 impl Client {
     /// Initialize Client with given connection pool
@@ -105,48 +99,58 @@ impl Client {
     // }
 
     /// Get a key from memcached server.
-    ///
-    /// Example:
-    ///
-    /// ```rust
-    /// let pool = vmemcached::Pool::builder()
-    ///     .connection_timeout(std::time::Duration::from_secs(1))
-    ///     .build(vmemcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
-    ///     .unwrap();
-    ///
-    /// let client = vmemcached::Client::with_pool(pool);
-    ///
-    /// let _: Option<String> = client.get("foo").unwrap();
-    /// ```
-    pub async fn get<K: AsRef<[u8]>, T: DeserializeOwned>(
+    pub async fn get<K: AsRef<[u8]>, V: DeserializeOwned>(
         &self,
         key: K,
-    ) -> Result<Option<T>, MemcacheError> {
+    ) -> Result<Option<V>, MemcacheError> {
         check_key_len(&key)?;
+
+        let keys = &[key];
 
         // <command name> <key> <flags> <exptime> <bytes> [noreply]\r\n
         self.get_connection()
-            .and_then(|conn| driver::retrieve(conn, driver::Command::Get, key))
+            .and_then(|conn| driver::retrieve(conn, driver::RetrievalCommand::Get, keys))
+            .and_then(|response| async {
+                if let Some(mut values) = response {
+                    let value = values.swap_remove(0);
+                    codec::decode(value.data)
+                } else {
+                    Ok(None)
+                }
+            })
+            .await
+    }
+
+    /// Get keys from memcached server.
+    pub async fn gets<K: AsRef<[u8]>, V: DeserializeOwned>(
+        &self,
+        keys: &[K],
+    ) -> Result<Option<HashMap<String, V>>, MemcacheError> {
+        for key in keys.iter() {
+            check_key_len(&key)?;
+        }
+
+        // <command name> <key> <flags> <exptime> <bytes> [noreply]\r\n
+        self.get_connection()
+            .and_then(|conn| driver::retrieve(conn, driver::RetrievalCommand::Gets, keys))
+            .and_then(|response| async {
+                if let Some(values) = response {
+                    let mut map: HashMap<String, V> = HashMap::with_capacity(values.len());
+
+                    for value in values.into_iter() {
+                        let decoded: V = codec::decode(value.data)?;
+
+                        let _ = map.insert(String::from_utf8(value.key)?, decoded);
+                    }
+                    Ok(Some(map))
+                } else {
+                    Ok(None)
+                }
+            })
             .await
     }
 
     /// Set a key with associate value into memcached server with expiration seconds.
-    ///
-    /// <command name> <key> <flags> <exptime> <bytes> [noreply]\r\n
-    ///
-    /// Example:
-    ///
-    /// ```rust
-    /// let pool = vmemcached::Pool::builder()
-    ///     .connection_timeout(std::time::Duration::from_secs(1))
-    ///     .build(vmemcached::ConnectionManager::new("memcache://localhost:11211").unwrap())
-    ///     .unwrap();
-    ///
-    /// let client = vmemcached::Client::with_pool(pool);
-    ///
-    /// client.set("foo", "bar", std::time::Duration::from_secs(10)).unwrap();
-    /// # client.flush().unwrap();
-    /// ```
     pub async fn set<K: AsRef<[u8]>, T: Serialize>(
         &self,
         key: K,
@@ -160,15 +164,60 @@ impl Client {
         // <command name> <key> <flags> <exptime> <bytes> [noreply]\r\n
         self.get_connection()
             .and_then(|conn| {
-                driver::store(
+                driver::storage(
                     conn,
-                    driver::Command::Set,
+                    driver::StorageCommand::Set,
                     key,
                     0,
                     expiration,
                     encoded,
                     false,
                 )
+            })
+            .and_then(|response| async {
+                match response {
+                    Response::Status(s) => Ok(s),
+                    Response::Error(e) => Err(e.into()),
+                    _ => unreachable!(),
+                }
+            })
+            .await
+    }
+
+    /// Delete a key with associate value into memcached server
+    pub async fn delete<K: AsRef<[u8]>>(&self, key: K) -> Result<parser::Status, MemcacheError> {
+        check_key_len(&key)?;
+
+        // <command name> <key> <flags> <exptime> <bytes> [noreply]\r\n
+        self.get_connection()
+            .and_then(|conn| driver::delete(conn, key, false))
+            .and_then(|response| async {
+                match response {
+                    Response::Status(s) => Ok(s),
+                    Response::Error(e) => Err(e.into()),
+                    _ => unreachable!(),
+                }
+            })
+            .await
+    }
+
+    /// Delete a key with associate value into memcached server
+    pub async fn touch<K: AsRef<[u8]>>(
+        &self,
+        key: K,
+        expiration: impl Into<Option<Duration>>,
+    ) -> Result<parser::Status, MemcacheError> {
+        check_key_len(&key)?;
+
+        // <command name> <key> <flags> <exptime> <bytes> [noreply]\r\n
+        self.get_connection()
+            .and_then(|conn| driver::touch(conn, key, expiration, false))
+            .and_then(|response| async {
+                match response {
+                    Response::Status(s) => Ok(s),
+                    Response::Error(e) => Err(e.into()),
+                    _ => unreachable!(),
+                }
             })
             .await
     }
@@ -287,27 +336,3 @@ impl Client {
     //     })
     // }
 }
-
-// TODO: enable
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use std::time::Duration;
-//
-//     fn connect(target: &str) -> Result<Client, MemcacheError> {
-//         let pool = r2d2::Pool::builder()
-//             .max_size(20)
-//             .connection_timeout(Duration::from_millis(500))
-//             .build(ConnectionManager::new(target)?)?;
-//
-//         Ok(Client::with_pool(pool))
-//     }
-//
-//     #[test]
-//     fn delete() {
-//         let client = connect("memcache://localhost:11211").unwrap();
-//         client.set("an_exists_key", "value", Duration::from_secs(0)).unwrap();
-//         assert_eq!(client.delete("an_exists_key").unwrap(), true);
-//         assert_eq!(client.delete("a_not_exists_key").unwrap(), false);
-//     }
-// }

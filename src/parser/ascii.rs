@@ -47,7 +47,7 @@ fn parse_ascii_error(buf: &[u8]) -> IResult<&[u8], Response> {
         crlf,
     );
 
-    map(parser, |e| Response::Status(Status::Error(e)))(buf)
+    map(parser, |e| Response::Error(e))(buf)
 }
 
 fn parse_ascii_u32(buf: &[u8]) -> IResult<&[u8], u32> {
@@ -78,7 +78,7 @@ fn is_signed_digit(chr: u8) -> bool {
     chr == 45 || (chr >= 48 && chr <= 57)
 }
 
-fn parse_ascii_value(buf: &[u8]) -> IResult<&[u8], Value> {
+fn _parse_ascii_value(buf: &[u8]) -> IResult<&[u8], Value> {
     let kf = take_while1(is_key_char);
     let (buf, (_, key, _, flags, _, len, _, cas, _)) = tuple((
         // VALUE key flags data_len [cas id]\r\n
@@ -105,9 +105,9 @@ fn parse_ascii_value(buf: &[u8]) -> IResult<&[u8], Value> {
     ))
 }
 
-fn parse_ascii_data(buf: &[u8]) -> IResult<&[u8], Response> {
+fn parse_ascii_values(buf: &[u8]) -> IResult<&[u8], Response> {
     let values = map(
-        fold_many0(parse_ascii_value, Vec::new, |mut acc, x| {
+        fold_many0(_parse_ascii_value, Vec::new, |mut acc, x| {
             acc.push(x);
             acc
         }),
@@ -129,7 +129,7 @@ pub fn parse_ascii_response(buf: &[u8]) -> Result<Option<(usize, Response)>, Err
         _parse_ascii_status,
         parse_ascii_error,
         parse_ascii_incrdecr,
-        parse_ascii_data,
+        parse_ascii_values,
     ))(buf);
 
     match result {
@@ -279,9 +279,9 @@ mod tests {
                 (b"TOUCHED\r\n", 9, Response::Status(Status::Touched)),
                 (b"EXISTS\r\n", 8, Response::Status(Status::Exists)),
                 (b"NOT_FOUND\r\n", 11, Response::Status(Status::NotFound)),
-                (b"ERROR\r\n", 7, Response::Status(Status::Error(ErrorKind::NonexistentCommand))),
-                (b"CLIENT_ERROR foo\r\n", 18, Response::Status(Status::Error(ErrorKind::Client(FOO_STR.to_string())))),
-                (b"SERVER_ERROR bar\r\n", 18, Response::Status(Status::Error(ErrorKind::Server(BAR_STR.to_string())))),
+                (b"ERROR\r\n", 7, Response::Error(ErrorKind::NonexistentCommand)),
+                (b"CLIENT_ERROR foo\r\n", 18, Response::Error(ErrorKind::Client(FOO_STR.to_string()))),
+                (b"SERVER_ERROR bar\r\n", 18, Response::Error(ErrorKind::Server(BAR_STR.to_string()))),
                 (b"42\r\n", 4, Response::IncrDecr(42)),
                 (b"END\r\n", 5, Response::Data(None)),
                 (b"VALUE foo 42 11\r\nhello world\r\nEND\r\n", 35, Response::Data(Some(

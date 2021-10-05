@@ -47,7 +47,7 @@ pub use crate::error::{ClientError, CommandError, MemcacheError, ServerError};
 pub use crate::manager::ConnectionManager;
 pub use crate::stream::Stream;
 pub use connection::Connection;
-pub use parser::Status;
+pub use parser::{ErrorKind, Status};
 pub use r2d2::Error as PoolError;
 
 /// R2D2 connection pool

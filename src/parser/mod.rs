@@ -33,14 +33,6 @@ pub enum Status {
     Exists,
     /// The key was not found.
     NotFound,
-    /// An error occurred for the given operation.
-    Error(ErrorKind),
-}
-
-impl Status {
-    pub fn is_server_error(&self) -> bool {
-        matches!(self, Status::Error(ErrorKind::Server(_)))
-    }
 }
 
 /// Errors related to a memcached operation.
@@ -67,6 +59,14 @@ pub enum Response {
     Data(Option<Vec<Value>>),
     /// Resulting value of a key after an increment/decrement operation.
     IncrDecr(u64),
+    /// An error occurred for the given operation.
+    Error(ErrorKind),
+}
+
+impl Response {
+    pub fn is_server_error(&self) -> bool {
+        matches!(self, Response::Error(ErrorKind::Server(_)))
+    }
 }
 
 /// Metadump response.
@@ -119,7 +119,6 @@ impl fmt::Display for Status {
             Self::Touched => write!(f, "touched"),
             Self::Exists => write!(f, "exists"),
             Self::NotFound => write!(f, "not found"),
-            Self::Error(ek) => write!(f, "error: {}", ek),
         }
     }
 }
@@ -139,13 +138,13 @@ impl fmt::Display for ErrorKind {
     }
 }
 
-impl From<MetadumpResponse> for Status {
+impl From<MetadumpResponse> for Response {
     fn from(resp: MetadumpResponse) -> Self {
         match resp {
             MetadumpResponse::BadClass(s) => {
-                Status::Error(ErrorKind::Generic(format!("BADCLASS {}", s)))
+                Response::Error(ErrorKind::Generic(format!("BADCLASS {}", s)))
             }
-            MetadumpResponse::Busy(s) => Status::Error(ErrorKind::Generic(format!("BUSY {}", s))),
+            MetadumpResponse::Busy(s) => Response::Error(ErrorKind::Generic(format!("BUSY {}", s))),
             _ => unreachable!("Metadump Entry/End states should never be used as a Status!"),
         }
     }
