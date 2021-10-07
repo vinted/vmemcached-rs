@@ -136,3 +136,12 @@ impl From<String> for ClientError {
         ClientError::Error(Cow::Owned(s))
     }
 }
+
+impl From<bb8::RunError<MemcacheError>> for MemcacheError {
+    fn from(e: bb8::RunError<MemcacheError>) -> Self {
+        match e {
+            bb8::RunError::User(e) => e,
+            bb8::RunError::TimedOut => MemcacheError::Io(io::Error::from(io::ErrorKind::TimedOut)),
+        }
+    }
+}
