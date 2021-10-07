@@ -20,7 +20,9 @@ vmemcached = "0.1.0"
  - Value is accepted as implementing Serialize and is stored as JSON using simd-json crate
  - Not supported: increment/decrement/append/prepend/gets operations due to JSON and compression
  - Feature: "compress" enable Brotli encoding/decoding
- - Feature: "tls" enables OpenSSL support
+ - Tokio
+ - [bb8](https://github.com/djc/bb8) async connection pool
+ - [Nom](https://github.com/Geal/nom) for parsing memcached ASCII protocol
 
 ## Development
 
