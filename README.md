@@ -1,6 +1,6 @@
 # vmemcached
 
-[![Build Status](https://app.travis-ci.com/vinted/vmemcached-rs.svg?branch=master)](https://app.travis-ci.com/vinted/vmemcached-rs)
+[![CI](https://github.com/vinted/vmemcached-rs/actions/workflows/ci.yaml/badge.svg?branch=master)](https://github.com/vinted/vmemcached-rs/actions/workflows/ci.yaml)
 
 vmemcached is a [memcached](https://memcached.org/) client written in pure Rust.
 
