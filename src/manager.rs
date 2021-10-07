@@ -1,10 +1,9 @@
 use async_trait::async_trait;
 use std::convert::TryFrom;
-use std::io;
 use url::Url;
 
 use crate::connection::Connection;
-use crate::driver;
+use crate::{driver, MemcacheError};
 
 /// A `bb8::ManageConnection` for `memcache_async::ascii::Protocol`.
 #[derive(Clone, Debug)]
@@ -30,21 +29,19 @@ impl TryFrom<&str> for ConnectionManager {
 #[async_trait]
 impl bb8::ManageConnection for ConnectionManager {
     type Connection = Connection;
-    type Error = io::Error;
+    type Error = MemcacheError;
 
     async fn connect(&self) -> Result<Self::Connection, Self::Error> {
-        Connection::connect(&*self.url.socket_addrs(|| None)?).await
+        Connection::connect(&*self.url.socket_addrs(|| None)?)
+            .await
+            .map_err(Into::into)
     }
 
     async fn is_valid(
         &self,
         conn: &mut bb8::PooledConnection<'_, Self>,
     ) -> Result<(), Self::Error> {
-        driver::version(conn)
-            .await
-            .map(|_| ())
-            // TODO: rethink this hides real error
-            .map_err(|_| io::Error::from(io::ErrorKind::Other))
+        driver::version(conn).await.map(|_| ())
     }
 
     fn has_broken(&self, _: &mut Self::Connection) -> bool {
