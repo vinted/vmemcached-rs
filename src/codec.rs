@@ -82,6 +82,10 @@ mod tests {
         assert!(a_decoded_from_b.is_ok());
 
         let c_decoded_from_b: Result<C, simd_json::Error> = simd_json::from_slice(&mut b_encoded);
-        assert!(c_decoded_from_b.is_ok(), "simd_json::Error: {:?}", c_decoded_from_b);
+        assert!(
+            c_decoded_from_b.is_ok(),
+            "simd_json::Error: {:?}",
+            c_decoded_from_b
+        );
     }
 }

@@ -36,14 +36,20 @@ mod client;
 mod codec;
 mod connection;
 mod error;
-mod protocol;
-mod stream;
+mod manager;
+mod parser;
 
-pub use crate::client::{Client, Stats};
-pub use crate::connection::ConnectionManager;
-pub use crate::error::{ClientError, CommandError, MemcacheError, ServerError};
-pub use crate::stream::Stream;
-pub use r2d2::Error as PoolError;
+/// Driver access
+pub mod driver;
+
+pub use crate::client::Client;
+pub use crate::error::{ClientError, ErrorKind, MemcacheError};
+pub use crate::manager::ConnectionManager;
+pub use connection::Connection;
+pub use parser::Status;
 
 /// R2D2 connection pool
-pub type Pool = r2d2::Pool<ConnectionManager>;
+pub type Pool = bb8::Pool<ConnectionManager>;
+
+/// R2D2 connection pool
+pub type PoolConnection<'c> = bb8::PooledConnection<'c, ConnectionManager>;

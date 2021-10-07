@@ -1,241 +1,54 @@
-use std::net::TcpStream;
-use std::ops::{Deref, DerefMut};
-#[cfg(unix)]
-use std::os::unix::net::UnixStream;
-use url::Url;
+use pin_project::pin_project;
+use std::io;
+use std::pin::Pin;
+use std::task::{Context, Poll};
+use tokio::io::{AsyncBufRead, AsyncRead, AsyncWrite, BufReader, BufWriter, ReadBuf};
+use tokio::net::{TcpStream, ToSocketAddrs};
 
-use crate::error::MemcacheError;
-
-use crate::protocol::{AsciiProtocol, ProtocolTrait};
-use crate::stream::Stream;
-#[cfg(feature = "tls")]
-use openssl::ssl::{SslConnector, SslFiletype, SslMethod, SslVerifyMode};
-use r2d2::ManageConnection;
-
-/// A connection to the memcached server
-#[allow(missing_debug_implementations)]
-pub struct Connection(AsciiProtocol<Stream>);
-
-impl DerefMut for Connection {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-impl Deref for Connection {
-    type Target = AsciiProtocol<Stream>;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-/// Memcache connection manager implementing rd2d Pool ManageConnection
+/// Connection wrapper
 #[derive(Debug)]
-pub struct ConnectionManager {
-    url: Url,
-}
+#[pin_project]
+pub struct Connection(#[pin] BufReader<BufWriter<TcpStream>>);
 
-impl ConnectionManager {
-    /// Initialize connection manager with given Url
-    pub fn new(target: impl AsRef<str>) -> Result<Self, MemcacheError> {
-        let url = Url::parse(target.as_ref())?;
-        Ok(Self { url })
+impl AsyncRead for Connection {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut Context,
+        buf: &mut ReadBuf,
+    ) -> Poll<io::Result<()>> {
+        self.project().0.poll_read(cx, buf)
     }
 }
 
-impl ManageConnection for ConnectionManager {
-    type Connection = Connection;
-    type Error = MemcacheError;
-
-    fn connect(&self) -> Result<Self::Connection, Self::Error> {
-        let url = &self.url;
-        let mut connection = Connection::connect(url)?;
-        if url.has_authority() && !url.username().is_empty() && url.password().is_some() {
-            let username = url.username();
-            let password = url.password().unwrap();
-            connection.auth(username, password)?;
-        }
-        Ok(connection)
+impl AsyncWrite for Connection {
+    fn poll_write(self: Pin<&mut Self>, cx: &mut Context, buf: &[u8]) -> Poll<io::Result<usize>> {
+        self.project().0.poll_write(cx, buf)
     }
 
-    fn is_valid(&self, conn: &mut Self::Connection) -> Result<(), Self::Error> {
-        conn.version().map(|_| ())
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
+        self.project().0.poll_flush(cx)
     }
 
-    fn has_broken(&self, _conn: &mut Self::Connection) -> bool {
-        false
+    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
+        self.project().0.poll_shutdown(cx)
     }
 }
 
-enum Transport {
-    Tcp(TcpOptions),
-    #[cfg(unix)]
-    Unix,
-    #[cfg(feature = "tls")]
-    Tls(TlsOptions),
-}
-
-#[cfg(feature = "tls")]
-struct TlsOptions {
-    tcp_options: TcpOptions,
-    ca_path: Option<String>,
-    key_path: Option<String>,
-    cert_path: Option<String>,
-    verify_mode: SslVerifyMode,
-}
-
-struct TcpOptions {
-    nodelay: bool,
-}
-
-#[cfg(feature = "tls")]
-fn get_param(url: &Url, key: &str) -> Option<String> {
-    return url
-        .query_pairs()
-        .find(|&(ref k, ref _v)| k == key)
-        .map(|(_k, v)| v.to_string());
-}
-
-#[cfg(feature = "tls")]
-impl TlsOptions {
-    fn from_url(url: &Url) -> Result<Self, MemcacheError> {
-        let verify_mode = match get_param(url, "verify_mode").as_ref().map(String::as_str) {
-            Some("none") => SslVerifyMode::NONE,
-            Some("peer") => SslVerifyMode::PEER,
-            Some(_) => {
-                return Err(MemcacheError::BadURL(
-                    "unknown verify_mode, expected 'none' or 'peer'".into(),
-                ))
-            }
-            None => SslVerifyMode::PEER,
-        };
-
-        let ca_path = get_param(url, "ca_path");
-        let key_path = get_param(url, "key_path");
-        let cert_path = get_param(url, "cert_path");
-
-        if key_path.is_some() && cert_path.is_none() {
-            return Err(MemcacheError::BadURL(
-                "cert_path must be specified when key_path is specified".into(),
-            ));
-        } else if key_path.is_none() && cert_path.is_some() {
-            return Err(MemcacheError::BadURL(
-                "key_path must be specified when cert_path is specified".into(),
-            ));
-        }
-
-        Ok(TlsOptions {
-            tcp_options: TcpOptions::from_url(url),
-            ca_path: ca_path,
-            key_path: key_path,
-            cert_path: cert_path,
-            verify_mode: verify_mode,
-        })
+impl AsyncBufRead for Connection {
+    fn poll_fill_buf(self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<&[u8]>> {
+        self.project().0.poll_fill_buf(cx)
     }
-}
 
-impl TcpOptions {
-    fn from_url(url: &Url) -> Self {
-        let nodelay = !url
-            .query_pairs()
-            .any(|(ref k, ref v)| k == "tcp_nodelay" && v == "false");
-
-        Self { nodelay }
+    fn consume(self: Pin<&mut Self>, amt: usize) {
+        self.project().0.consume(amt)
     }
-}
-
-impl Transport {
-    fn from_url(url: &Url) -> Result<Self, MemcacheError> {
-        let mut parts = url.scheme().splitn(2, '+');
-        match parts.next() {
-            Some(part) if part == "memcache" => (),
-            _ => {
-                return Err(MemcacheError::BadURL(
-                    "memcache URL's scheme should start with 'memcache'".into(),
-                ))
-            }
-        }
-
-        // scheme has highest priority
-        if let Some(proto) = parts.next() {
-            return match proto {
-                "tcp" => Ok(Transport::Tcp(TcpOptions::from_url(url))),
-                #[cfg(unix)]
-                "unix" => Ok(Transport::Unix),
-                #[cfg(feature = "tls")]
-                "tls" => Ok(Transport::Tls(TlsOptions::from_url(url)?)),
-                _ => Err(MemcacheError::BadURL(
-                    "memcache URL's scheme should be 'memcache+tcp' or 'memcache+unix' or 'memcache+tls'".into(),
-                )),
-            };
-        }
-
-        #[cfg(unix)]
-        {
-            if url.host().is_none() && url.port() == None {
-                return Ok(Transport::Unix);
-            }
-        }
-
-        Ok(Transport::Tcp(TcpOptions::from_url(url)))
-    }
-}
-
-fn tcp_stream(url: &Url, opts: &TcpOptions) -> Result<TcpStream, MemcacheError> {
-    let tcp_stream = TcpStream::connect(&*url.socket_addrs(|| None)?)?;
-    tcp_stream.set_nodelay(opts.nodelay)?;
-    Ok(tcp_stream)
 }
 
 impl Connection {
-    pub(crate) fn connect(url: &Url) -> Result<Self, MemcacheError> {
-        let transport = Transport::from_url(url)?;
-        let stream: Stream = match transport {
-            Transport::Tcp(options) => Stream::Tcp(tcp_stream(url, &options)?),
-            #[cfg(unix)]
-            Transport::Unix => Stream::Unix(UnixStream::connect(url.path())?),
-            #[cfg(feature = "tls")]
-            Transport::Tls(options) => {
-                let host = url
-                    .host_str()
-                    .ok_or(MemcacheError::BadURL("host required for TLS connection".into()))?;
-
-                let mut builder = SslConnector::builder(SslMethod::tls())?;
-                builder.set_verify(options.verify_mode);
-
-                if options.ca_path.is_some() {
-                    builder.set_ca_file(&options.ca_path.unwrap())?;
-                }
-
-                if options.key_path.is_some() {
-                    builder.set_private_key_file(options.key_path.unwrap(), SslFiletype::PEM)?;
-                }
-
-                if options.cert_path.is_some() {
-                    builder.set_certificate_chain_file(options.cert_path.unwrap())?;
-                }
-
-                let tls_conn = builder.build();
-                let tcp_stream = tcp_stream(url, &options.tcp_options)?;
-                let tls_stream = tls_conn.connect(host, tcp_stream)?;
-                Stream::Tls(tls_stream)
-            }
-        };
-
-        Ok(Connection(AsciiProtocol::new(stream)))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    #[cfg(unix)]
-    #[test]
-    fn test_transport_url() {
-        use super::Transport;
-        use url::Url;
-        match Transport::from_url(&Url::parse("memcache:///tmp/memcached.sock").unwrap()).unwrap() {
-            Transport::Unix => (),
-            _ => assert!(false, "transport is not unix"),
-        }
+    /// Connect to to given socket address
+    pub async fn connect<A: ToSocketAddrs>(address: A) -> Result<Connection, io::Error> {
+        TcpStream::connect(address)
+            .await
+            .map(|c| Connection(BufReader::new(BufWriter::new(c))))
     }
 }
