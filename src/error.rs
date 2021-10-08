@@ -41,6 +41,16 @@ pub enum MemcacheError {
     Memcache(ErrorKind),
 }
 
+impl MemcacheError {
+    /// Check if error type was time out
+    pub fn is_timeout(&self) -> bool {
+        match self {
+            MemcacheError::Io(error) => error.kind() == io::ErrorKind::TimedOut,
+            _ => false,
+        }
+    }
+}
+
 impl fmt::Display for MemcacheError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {

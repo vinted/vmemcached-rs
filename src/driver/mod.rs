@@ -12,7 +12,7 @@ const COMMAND_DELETE: &[u8] = b"delete ";
 const COMMAND_TOUCH: &[u8] = b"touch ";
 const COMMAND_VERSION: &[u8] = b"version\r\n";
 
-const RESPONSE_BUFFER_BYTES: usize = 64;
+const RESPONSE_BUFFER_BYTES: usize = 128;
 
 /// Storage command
 #[derive(Debug)]
