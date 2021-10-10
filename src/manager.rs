@@ -1,9 +1,11 @@
 use async_trait::async_trait;
 use std::convert::TryFrom;
+use std::io;
+use tokio::io::{Interest, Ready};
 use url::Url;
 
 use crate::connection::Connection;
-use crate::{driver, MemcacheError};
+use crate::MemcacheError;
 
 /// A `bb8::ManageConnection` for `memcache_async::ascii::Protocol`.
 #[derive(Clone, Debug)]
@@ -41,10 +43,20 @@ impl bb8::ManageConnection for ConnectionManager {
         &self,
         conn: &mut bb8::PooledConnection<'_, Self>,
     ) -> Result<(), Self::Error> {
-        driver::version(conn).await.map(|_| ())
+        let ready = conn
+            .get_ref()
+            .ready(Interest::READABLE | Interest::WRITABLE)
+            .await?;
+
+        // Check connection for all states: READABLE | WRITABLE | READ_CLOSED | WRITE_CLOSED
+        if ready == Ready::ALL {
+            Ok(())
+        } else {
+            Err(io::ErrorKind::UnexpectedEof.into())
+        }
     }
 
-    fn has_broken(&self, _: &mut Self::Connection) -> bool {
-        false
+    fn has_broken(&self, conn: &mut Self::Connection) -> bool {
+        conn.has_broken()
     }
 }

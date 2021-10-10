@@ -2,7 +2,7 @@ ARGS:=-p ci -f dockerfiles/docker-compose.base.yml -f dockerfiles/docker-compose
 
 .PHONY: start-test-env
 start-test-env:
-	docker-compose $(ARGS) up --remove-orphans --detach
+	docker-compose $(ARGS) up --remove-orphans --detach --force-recreate
 
 .PHONY: stop-test-env
 stop-test-env:
@@ -12,3 +12,6 @@ stop-test-env:
 test: start-test-env
 	cargo test
 
+.PHONY: start-dev-env
+start-dev-env:
+	docker-compose $(ARGS) up --remove-orphans

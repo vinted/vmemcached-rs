@@ -99,6 +99,12 @@ impl From<io::Error> for MemcacheError {
     }
 }
 
+impl From<io::ErrorKind> for MemcacheError {
+    fn from(err: io::ErrorKind) -> MemcacheError {
+        MemcacheError::Io(io::Error::from(err))
+    }
+}
+
 impl From<bb8::RunError<io::Error>> for MemcacheError {
     fn from(err: bb8::RunError<io::Error>) -> MemcacheError {
         MemcacheError::PoolError(err)

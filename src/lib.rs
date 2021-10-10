@@ -45,6 +45,7 @@ pub mod driver;
 pub use crate::client::Client;
 pub use crate::error::{ClientError, ErrorKind, MemcacheError};
 pub use crate::manager::ConnectionManager;
+pub use bb8::{ErrorSink, State};
 pub use connection::Connection;
 pub use parser::Status;
 

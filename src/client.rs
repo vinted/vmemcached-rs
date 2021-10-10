@@ -1,4 +1,4 @@
-use bb8::PooledConnection;
+use bb8::{PooledConnection, State};
 use futures_util::TryFutureExt;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -26,6 +26,11 @@ impl Client {
     /// Initialize Client with given connection pool
     pub fn with_pool(pool: Pool) -> Self {
         Self(pool)
+    }
+
+    /// Returns information about the current state of the pool.
+    pub fn state(&self) -> State {
+        self.0.state()
     }
 
     /// Get pool connection
