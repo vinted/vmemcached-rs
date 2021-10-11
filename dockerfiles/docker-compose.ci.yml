@@ -15,6 +15,10 @@ services:
     command: >
       bash -c "mcrouter --config-str='{\"pools\":{\"A\":{\"servers\":[\"ci-memcached:11211\"]}},\"route\":\"PoolRoute|A\"}' -p 11311"
 
+  haproxy:
+    ports:
+      - "21311:21311/tcp"
+
 networks:
   default:
     ipam:

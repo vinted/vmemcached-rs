@@ -1,4 +1,5 @@
 use bytes::BytesMut;
+use std::io;
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
@@ -12,6 +13,7 @@ const COMMAND_DELETE: &[u8] = b"delete ";
 const COMMAND_TOUCH: &[u8] = b"touch ";
 const COMMAND_VERSION: &[u8] = b"version\r\n";
 
+// 128 bytes should be enough to address all storage responses
 const RESPONSE_BUFFER_BYTES: usize = 128;
 
 /// Storage command
@@ -97,10 +99,11 @@ where
     // Flush command
     let _ = conn.flush().await?;
 
-    // 64 bytes should be enough to address all storage responses
     let mut buffer: BytesMut = BytesMut::with_capacity(RESPONSE_BUFFER_BYTES);
 
-    let _ = conn.read_buf(&mut buffer).await?;
+    if conn.read_buf(&mut buffer).await? == 0 {
+        return Err(io::ErrorKind::UnexpectedEof.into());
+    }
 
     match parser::parse_ascii_status(&buffer) {
         Ok((_left, result)) => Ok(result),
@@ -162,7 +165,9 @@ where
     let mut buffer: BytesMut = BytesMut::with_capacity(1024);
 
     loop {
-        let _bytes_read = conn.read_buf(&mut buffer).await?;
+        if conn.read_buf(&mut buffer).await? == 0 {
+            return Err(io::ErrorKind::UnexpectedEof.into());
+        }
 
         match parser::parse_ascii_response(&buffer) {
             Ok(Some((_n, response))) => match response {
@@ -216,10 +221,11 @@ where
     // Flush command
     let _ = conn.flush().await?;
 
-    // 64 bytes should be enough to address all storage responses
     let mut buffer: BytesMut = BytesMut::with_capacity(RESPONSE_BUFFER_BYTES);
 
-    let _ = conn.read_buf(&mut buffer).await?;
+    if conn.read_buf(&mut buffer).await? == 0 {
+        return Err(io::ErrorKind::UnexpectedEof.into());
+    }
 
     match parser::parse_ascii_status(&buffer) {
         Ok((_left, result)) => Ok(result),
@@ -269,10 +275,11 @@ where
     // Flush command
     let _ = conn.flush().await?;
 
-    // 64 bytes should be enough to address all storage responses
     let mut buffer: BytesMut = BytesMut::with_capacity(RESPONSE_BUFFER_BYTES);
 
-    let _ = conn.read_buf(&mut buffer).await?;
+    if conn.read_buf(&mut buffer).await? == 0 {
+        return Err(io::ErrorKind::UnexpectedEof.into());
+    }
 
     match parser::parse_ascii_status(&buffer) {
         Ok((_left, result)) => Ok(result),
@@ -291,10 +298,11 @@ pub async fn version(conn: &mut PoolConnection<'_>) -> Result<String, MemcacheEr
     // Flush command
     let _ = conn.flush().await?;
 
-    // 64 bytes should be enough to address all storage responses
     let mut buffer: BytesMut = BytesMut::with_capacity(RESPONSE_BUFFER_BYTES);
 
-    let _ = conn.read_buf(&mut buffer).await?;
+    if conn.read_buf(&mut buffer).await? == 0 {
+        return Err(io::ErrorKind::UnexpectedEof.into());
+    }
 
     match parser::parse_version(&buffer) {
         Ok((_left, result)) => Ok(result),

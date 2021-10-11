@@ -6,9 +6,16 @@ services:
     container_name: ci-memcached
     command: memcached -p 11211 -U 11211
 
-
   mcrouter:
     depends_on:
       - memcached
     image: studiosol/mcrouter:v0.38.0
     container_name: ci-mcrouter
+
+  haproxy:
+    image: haproxy:2.2.17-alpine3.14
+    container_name: ci-haproxy
+    volumes:
+      - ./haproxy:/usr/local/etc/haproxy
+    links:
+      - mcrouter
