@@ -10,7 +10,7 @@ The crate is called `vmemcached` and you can depend on it via cargo:
 
 ```ini
 [dependencies]
-vmemcached = "0.1.0"
+vmemcached = "0.2.0"
 ```
 
 ## Features
