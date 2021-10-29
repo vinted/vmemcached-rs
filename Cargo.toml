@@ -1,6 +1,6 @@
 [package]
 name = "vmemcached"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Vinted hello@vinted.com"]
 repository = "https://github.com/vinted/vmemcached-rs"
 readme = "README.md"
