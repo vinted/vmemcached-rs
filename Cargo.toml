@@ -17,7 +17,7 @@ compress = ["brotli"]
 url = { version = "2", default-features = false }
 serde = { version = "1", default-features = false }
 brotli = { version = "3.3", default-features = false, features = ["std"], optional = true }
-simd-json = { version = "0.4", default-features = true, features = ["serde_impl", "allow-non-simd"] }
+serde_json = "1"
 btoi = { version = "0.4.2", default-features = false }
 nom = { version = "7", default-features = false, features = ["std"] }
 bytes = { version = "1", default-features = false, features =["std"] }

@@ -33,8 +33,8 @@ pub enum MemcacheError {
     Utf8Error(string::FromUtf8Error),
     /// ConnectionPool errors
     PoolError(bb8::RunError<io::Error>),
-    /// SIMD JSON error
-    Serde(simd_json::Error),
+    /// JSON error
+    Serde(serde_json::Error),
     /// Nom error
     Nom(String),
     /// Memcache error
@@ -111,8 +111,8 @@ impl From<bb8::RunError<io::Error>> for MemcacheError {
     }
 }
 
-impl From<simd_json::Error> for MemcacheError {
-    fn from(e: simd_json::Error) -> MemcacheError {
+impl From<serde_json::Error> for MemcacheError {
+    fn from(e: serde_json::Error) -> MemcacheError {
         MemcacheError::Serde(e)
     }
 }

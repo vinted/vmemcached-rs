@@ -17,7 +17,7 @@ vmemcached = "0.1.0"
 
  - ASCII protocol
  - Key interpreted as slice of u8 (bytes)
- - Value is accepted as implementing Serialize and is stored as JSON using simd-json crate
+ - Value is accepted as implementing Serialize and is stored as JSON using serde_json crate
  - Not supported: increment/decrement/append/prepend/gets operations due to JSON and compression
  - Feature: "compress" enable Brotli encoding/decoding
  - Tokio
