@@ -4,6 +4,7 @@ use std::fmt;
 use std::io;
 use std::str;
 use std::string;
+use trust_dns_resolver::error::ResolveError;
 
 /// Errors related to a memcached operation.
 #[derive(Clone, Debug, PartialEq)]
@@ -39,6 +40,8 @@ pub enum MemcacheError {
     Nom(String),
     /// Memcache error
     Memcache(ErrorKind),
+    /// DNS resolution error
+    Dns(ResolveError),
 }
 
 impl MemcacheError {
@@ -62,6 +65,7 @@ impl fmt::Display for MemcacheError {
             MemcacheError::Nom(ref err) => err.fmt(f),
             MemcacheError::Memcache(ref err) => err.fmt(f),
             MemcacheError::UrlError(ref err) => err.fmt(f),
+            MemcacheError::Dns(ref err) => err.fmt(f),
         }
     }
 }
@@ -77,6 +81,7 @@ impl error::Error for MemcacheError {
             MemcacheError::Nom(_) => None,
             MemcacheError::Memcache(_) => None,
             MemcacheError::UrlError(ref p) => p.source(),
+            MemcacheError::Dns(ref p) => p.source(),
         }
     }
 }
@@ -120,6 +125,12 @@ impl From<serde_json::Error> for MemcacheError {
 impl From<url::ParseError> for MemcacheError {
     fn from(e: url::ParseError) -> MemcacheError {
         MemcacheError::UrlError(e)
+    }
+}
+
+impl From<ResolveError> for MemcacheError {
+    fn from(e: ResolveError) -> MemcacheError {
+        MemcacheError::Dns(e)
     }
 }
 

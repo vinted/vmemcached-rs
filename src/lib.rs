@@ -54,3 +54,6 @@ pub type Pool = bb8::Pool<ConnectionManager>;
 
 /// R2D2 connection pool
 pub type PoolConnection<'c> = bb8::PooledConnection<'c, ConnectionManager>;
+
+/// Re-export DNS settings
+pub use trust_dns_resolver;
