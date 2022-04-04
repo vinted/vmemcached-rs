@@ -4,7 +4,7 @@ use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::parser::{Response, Value};
-use crate::{parser, MemcacheError, PoolConnection};
+use crate::{parser, MemcacheError, PoolConnection, Settings};
 
 const EMPTY_SPACE_BYTES: &[u8] = b" ";
 const NEW_LINE_BYTES: &[u8] = b"\r\n";
@@ -12,9 +12,6 @@ const NO_REPLY_BYTES: &[u8] = b" noreply\r\n";
 const COMMAND_DELETE: &[u8] = b"delete ";
 const COMMAND_TOUCH: &[u8] = b"touch ";
 const COMMAND_VERSION: &[u8] = b"version\r\n";
-
-// 128 bytes should be enough to address all storage responses
-const RESPONSE_BUFFER_BYTES: usize = 128;
 
 /// Storage command
 #[derive(Debug)]
@@ -53,6 +50,7 @@ impl From<StorageCommand> for &'static [u8] {
 ///
 /// - "NOT_FOUND\r\n" to indicate that the item you are trying to store
 /// with a "cas" command did not exist.
+#[allow(clippy::too_many_arguments)]
 pub async fn storage<K, E>(
     mut conn: PoolConnection<'_>,
     command: StorageCommand,
@@ -61,6 +59,7 @@ pub async fn storage<K, E>(
     expiration: E,
     bytes: Vec<u8>,
     noreply: bool,
+    settings: Settings,
 ) -> Result<Response, MemcacheError>
 where
     K: AsRef<[u8]>,
@@ -99,7 +98,7 @@ where
     // Flush command
     let _ = conn.flush().await?;
 
-    let mut buffer: BytesMut = BytesMut::with_capacity(RESPONSE_BUFFER_BYTES);
+    let mut buffer: BytesMut = BytesMut::with_capacity(settings.buffer_size);
 
     if conn.read_buf(&mut buffer).await? == 0 {
         return Err(io::ErrorKind::UnexpectedEof.into());
@@ -144,6 +143,7 @@ pub async fn retrieve<K>(
     mut conn: PoolConnection<'_>,
     command: RetrievalCommand,
     keys: &[K],
+    settings: Settings,
 ) -> Result<Option<Vec<Value>>, MemcacheError>
 where
     K: AsRef<[u8]>,
@@ -162,7 +162,7 @@ where
     // Flush command
     let _ = conn.flush().await?;
 
-    let mut buffer: BytesMut = BytesMut::with_capacity(1024);
+    let mut buffer: BytesMut = BytesMut::with_capacity(settings.buffer_size);
 
     loop {
         if conn.read_buf(&mut buffer).await? == 0 {
@@ -201,6 +201,7 @@ pub async fn delete<K>(
     mut conn: PoolConnection<'_>,
     key: K,
     noreply: bool,
+    settings: Settings,
 ) -> Result<Response, MemcacheError>
 where
     K: AsRef<[u8]>,
@@ -221,7 +222,7 @@ where
     // Flush command
     let _ = conn.flush().await?;
 
-    let mut buffer: BytesMut = BytesMut::with_capacity(RESPONSE_BUFFER_BYTES);
+    let mut buffer: BytesMut = BytesMut::with_capacity(settings.buffer_size);
 
     if conn.read_buf(&mut buffer).await? == 0 {
         return Err(io::ErrorKind::UnexpectedEof.into());
@@ -247,6 +248,7 @@ pub async fn touch<K, E>(
     key: K,
     expiration: E,
     noreply: bool,
+    settings: Settings,
 ) -> Result<Response, MemcacheError>
 where
     K: AsRef<[u8]>,
@@ -275,7 +277,7 @@ where
     // Flush command
     let _ = conn.flush().await?;
 
-    let mut buffer: BytesMut = BytesMut::with_capacity(RESPONSE_BUFFER_BYTES);
+    let mut buffer: BytesMut = BytesMut::with_capacity(settings.buffer_size);
 
     if conn.read_buf(&mut buffer).await? == 0 {
         return Err(io::ErrorKind::UnexpectedEof.into());
@@ -291,14 +293,17 @@ where
 ///
 ///
 /// "VERSION <version>\r\n", where <version> is the version string for the
-pub async fn version(conn: &mut PoolConnection<'_>) -> Result<String, MemcacheError> {
+pub async fn version(
+    conn: &mut PoolConnection<'_>,
+    settings: Settings,
+) -> Result<String, MemcacheError> {
     // <command name>
     let _ = conn.write(COMMAND_VERSION).await?;
 
     // Flush command
     let _ = conn.flush().await?;
 
-    let mut buffer: BytesMut = BytesMut::with_capacity(RESPONSE_BUFFER_BYTES);
+    let mut buffer: BytesMut = BytesMut::with_capacity(settings.buffer_size);
 
     if conn.read_buf(&mut buffer).await? == 0 {
         return Err(io::ErrorKind::UnexpectedEof.into());
