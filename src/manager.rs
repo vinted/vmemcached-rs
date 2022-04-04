@@ -94,10 +94,7 @@ impl bb8::ManageConnection for ConnectionManager {
         Connection::connect(&*addresses).await.map_err(Into::into)
     }
 
-    async fn is_valid(
-        &self,
-        conn: &mut bb8::PooledConnection<'_, Self>,
-    ) -> Result<(), Self::Error> {
+    async fn is_valid(&self, conn: &mut Self::Connection) -> Result<(), Self::Error> {
         let ready = conn
             .get_ref()
             .ready(Interest::READABLE | Interest::WRITABLE)
