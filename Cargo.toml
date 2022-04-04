@@ -17,19 +17,19 @@ compress = ["brotli"]
 url = { version = "2", default-features = false }
 serde = { version = "1", default-features = false }
 brotli = { version = "3.3", default-features = false, features = ["std"], optional = true }
-serde_json = "1"
-btoi = { version = "0.4.2", default-features = false }
+serde_json = { version = "1.0", default-features = true }
+btoi = { version = "0.4", default-features = false }
 nom = { version = "7", default-features = false, features = ["std"] }
-bytes = { version = "1", default-features = false, features =["std"] }
+bytes = { version = "1", default-features = false, features = ["std"] }
 bb8 = { version = "0.8", default-features = false }
-tokio = { version = "1.12", default-features = false, features = ["net", "io-util"] }
+tokio = { version = "1.17", default-features = false, features = ["net", "io-util"] }
 async-trait = { version = "0.1", default-features = false }
-futures-util = "0.3"
+futures-util = { version = "0.3", default-features = false }
 pin-project-lite = "0.2"
 trust-dns-resolver = { version = "0.21", default-features = false, features = ["tokio-runtime", "system-config"] }
 
 [dev-dependencies]
 lazy_static = "1.4"
-serde = { version = "1", default-features = false, features = ["derive"] }
-tokio = { version = "1.12", default-features = false, features = ["macros"] }
+serde = { version = "1", default-features = true, features = ["derive"] }
+tokio = { version = "1.17", default-features = false, features = ["macros"] }
 rand = { version = "0.8", default-features = false, features = ["std", "std_rng"] }
