@@ -8,11 +8,11 @@ use std::time::Duration;
 use crate::driver::{RetrievalCommand, StorageCommand};
 use crate::manager::ConnectionManager;
 use crate::parser::{self, Response};
-use crate::{codec, driver, ClientError, MemcacheError, Pool};
+use crate::{codec, driver, ClientError, MemcacheError, Pool, Settings};
 
 /// Client wrapping r2d2 memcached connection pool
 #[derive(Clone, Debug)]
-pub struct Client(Pool);
+pub struct Client(Pool, Settings);
 
 pub(crate) fn check_key_len<K: AsRef<[u8]>>(key: K) -> Result<(), MemcacheError> {
     if key.as_ref().len() > 250 {
@@ -23,9 +23,9 @@ pub(crate) fn check_key_len<K: AsRef<[u8]>>(key: K) -> Result<(), MemcacheError>
 }
 
 impl Client {
-    /// Initialize Client with given connection pool
-    pub fn with_pool(pool: Pool) -> Self {
-        Self(pool)
+    /// Initialize Client with given connection pool and settings
+    pub fn with_pool(pool: Pool, settings: Settings) -> Self {
+        Self(pool, settings)
     }
 
     /// Returns information about the current state of the pool.
@@ -45,10 +45,15 @@ impl Client {
         self.0.clone()
     }
 
+    /// Get reference of settings
+    pub fn get_settings(&self) -> &Settings {
+        &self.1
+    }
+
     /// Get the server version
     pub async fn version(&self) -> Result<String, MemcacheError> {
         let mut conn = self.get_connection().await?;
-        driver::version(&mut conn).await
+        driver::version(&mut conn, &self.1).await
     }
 
     /// Get a key from memcached server.
@@ -62,7 +67,7 @@ impl Client {
 
         // <command name> <key> <flags> <exptime> <bytes> [noreply]\r\n
         self.get_connection()
-            .and_then(|conn| driver::retrieve(conn, RetrievalCommand::Get, keys))
+            .and_then(|conn| driver::retrieve(conn, RetrievalCommand::Get, keys, &self.1))
             .and_then(|response| async {
                 if let Some(mut values) = response {
                     let value = values.swap_remove(0);
@@ -85,7 +90,7 @@ impl Client {
 
         // <command name> <key> <flags> <exptime> <bytes> [noreply]\r\n
         self.get_connection()
-            .and_then(|conn| driver::retrieve(conn, RetrievalCommand::Gets, keys))
+            .and_then(|conn| driver::retrieve(conn, RetrievalCommand::Gets, keys, &self.1))
             .and_then(|response| async {
                 if let Some(values) = response {
                     let mut map: HashMap<String, V> = HashMap::with_capacity(values.len());
@@ -120,7 +125,9 @@ impl Client {
 
         // <command name> <key> <flags> <exptime> <bytes> [noreply]\r\n
         self.get_connection()
-            .and_then(|conn| driver::storage(conn, cmd, key, 0, expiration, encoded, false))
+            .and_then(|conn| {
+                driver::storage(conn, cmd, key, 0, expiration, encoded, false, &self.1)
+            })
             .and_then(|response| async {
                 match response {
                     Response::Status(s) => Ok(s),
@@ -181,7 +188,7 @@ impl Client {
 
         // <command name> <key> <flags> <exptime> <bytes> [noreply]\r\n
         self.get_connection()
-            .and_then(|conn| driver::delete(conn, key, false))
+            .and_then(|conn| driver::delete(conn, key, false, &self.1))
             .and_then(|response| async {
                 match response {
                     Response::Status(s) => Ok(s),
@@ -205,7 +212,7 @@ impl Client {
 
         // <command name> <key> <flags> <exptime> <bytes> [noreply]\r\n
         self.get_connection()
-            .and_then(|conn| driver::touch(conn, key, expiration, false))
+            .and_then(|conn| driver::touch(conn, key, expiration, false, &self.1))
             .and_then(|response| async {
                 match response {
                     Response::Status(s) => Ok(s),
