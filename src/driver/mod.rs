@@ -59,7 +59,7 @@ pub async fn storage<K, E>(
     expiration: E,
     bytes: Vec<u8>,
     noreply: bool,
-    settings: Settings,
+    settings: &Settings,
 ) -> Result<Response, MemcacheError>
 where
     K: AsRef<[u8]>,
@@ -143,7 +143,7 @@ pub async fn retrieve<K>(
     mut conn: PoolConnection<'_>,
     command: RetrievalCommand,
     keys: &[K],
-    settings: Settings,
+    settings: &Settings,
 ) -> Result<Option<Vec<Value>>, MemcacheError>
 where
     K: AsRef<[u8]>,
@@ -201,7 +201,7 @@ pub async fn delete<K>(
     mut conn: PoolConnection<'_>,
     key: K,
     noreply: bool,
-    settings: Settings,
+    settings: &Settings,
 ) -> Result<Response, MemcacheError>
 where
     K: AsRef<[u8]>,
@@ -248,7 +248,7 @@ pub async fn touch<K, E>(
     key: K,
     expiration: E,
     noreply: bool,
-    settings: Settings,
+    settings: &Settings,
 ) -> Result<Response, MemcacheError>
 where
     K: AsRef<[u8]>,
@@ -295,7 +295,7 @@ where
 /// "VERSION <version>\r\n", where <version> is the version string for the
 pub async fn version(
     conn: &mut PoolConnection<'_>,
-    settings: Settings,
+    settings: &Settings,
 ) -> Result<String, MemcacheError> {
     // <command name>
     let _ = conn.write(COMMAND_VERSION).await?;

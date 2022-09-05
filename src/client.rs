@@ -45,15 +45,15 @@ impl Client {
         self.0.clone()
     }
 
-    /// Get clone of settings
-    pub fn get_settings(&self) -> Settings {
-        self.1.clone()
+    /// Get reference of settings
+    pub fn get_settings(&self) -> &Settings {
+        &self.1
     }
 
     /// Get the server version
     pub async fn version(&self) -> Result<String, MemcacheError> {
         let mut conn = self.get_connection().await?;
-        driver::version(&mut conn, self.1.clone()).await
+        driver::version(&mut conn, &self.1).await
     }
 
     /// Get a key from memcached server.
@@ -67,7 +67,7 @@ impl Client {
 
         // <command name> <key> <flags> <exptime> <bytes> [noreply]\r\n
         self.get_connection()
-            .and_then(|conn| driver::retrieve(conn, RetrievalCommand::Get, keys, self.1.clone()))
+            .and_then(|conn| driver::retrieve(conn, RetrievalCommand::Get, keys, &self.1))
             .and_then(|response| async {
                 if let Some(mut values) = response {
                     let value = values.swap_remove(0);
@@ -90,7 +90,7 @@ impl Client {
 
         // <command name> <key> <flags> <exptime> <bytes> [noreply]\r\n
         self.get_connection()
-            .and_then(|conn| driver::retrieve(conn, RetrievalCommand::Gets, keys, self.1.clone()))
+            .and_then(|conn| driver::retrieve(conn, RetrievalCommand::Gets, keys, &self.1))
             .and_then(|response| async {
                 if let Some(values) = response {
                     let mut map: HashMap<String, V> = HashMap::with_capacity(values.len());
@@ -126,16 +126,7 @@ impl Client {
         // <command name> <key> <flags> <exptime> <bytes> [noreply]\r\n
         self.get_connection()
             .and_then(|conn| {
-                driver::storage(
-                    conn,
-                    cmd,
-                    key,
-                    0,
-                    expiration,
-                    encoded,
-                    false,
-                    self.1.clone(),
-                )
+                driver::storage(conn, cmd, key, 0, expiration, encoded, false, &self.1)
             })
             .and_then(|response| async {
                 match response {
@@ -197,7 +188,7 @@ impl Client {
 
         // <command name> <key> <flags> <exptime> <bytes> [noreply]\r\n
         self.get_connection()
-            .and_then(|conn| driver::delete(conn, key, false, self.1.clone()))
+            .and_then(|conn| driver::delete(conn, key, false, &self.1))
             .and_then(|response| async {
                 match response {
                     Response::Status(s) => Ok(s),
@@ -221,7 +212,7 @@ impl Client {
 
         // <command name> <key> <flags> <exptime> <bytes> [noreply]\r\n
         self.get_connection()
-            .and_then(|conn| driver::touch(conn, key, expiration, false, self.1.clone()))
+            .and_then(|conn| driver::touch(conn, key, expiration, false, &self.1))
             .and_then(|response| async {
                 match response {
                     Response::Status(s) => Ok(s),
